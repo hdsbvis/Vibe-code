@@ -17,6 +17,13 @@ The whole game is one file, `index.html`, with no build step.
 
 Tip: in Safari, tap Share → **Add to Home Screen** to run it full screen.
 
+## What happens in a round
+
+- The prompt card sits at the top and the answer box is focused, so the keyboard opens right away.
+- A right answer launches the rocket. It shakes on ignition, leaves the ground behind, then orbits the planet it reached while aliens pop up and fireworks go off.
+- The next prompt launches from that planet, not from Earth.
+- A wrong answer or timeout sputters on the pad and goes nowhere.
+
 ## How scoring works
 
 - Every prompt has a hand-built list of accepted answers. Each answer has an estimated share of players who'd say it.
@@ -31,4 +38,10 @@ Edit the `BANK` array at the top of the `<script>` in `index.html`. Each line is
 
 ```
 Answer name|share of players in %|alias one,alias two
+```
+
+For bulk additions, use the `EXTRA` object right below `BANK`. Each line gives one share for many answers:
+
+```
+0.05|Huntsman spider/huntsman;Redback spider/redback
 ```
