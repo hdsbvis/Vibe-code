@@ -1,0 +1,1571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Far Out</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0718">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen arcade cabinet. HUD on top, flight scene in the middle, control card docked at the bottom. Single dark look by design. */
+:root{
+  --void:#0a0718;      /* deep space */
+  --panel:#15112e;     /* instrument panel */
+  --edge:#2e2766;      /* panel rivets */
+  --star:#efeaff;      /* text */
+  --dim:#8b84bb;       /* secondary text */
+  --ion:#5ef2ff;       /* cyan readouts */
+  --nova:#ff5fa2;      /* accent */
+  --thrust:#ffb547;    /* warnings, flame */
+  --display:"Pixelify Sans", "Courier New", monospace;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --notch:6px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--void);color:var(--star);font-family:var(--mono);font-size:15px;line-height:1.5;
+  overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;
+}
+#sky{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;z-index:0;
+  background:radial-gradient(120% 70% at 85% 10%, #2a1050 0%, transparent 55%),radial-gradient(90% 60% at 0% 90%, #0f2a52 0%, transparent 60%),var(--void)}
+#app{position:relative;z-index:1;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:12px;}
+.screen{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:14px}
+.panel{
+  background:var(--panel);box-shadow:inset 0 0 0 2px var(--edge);
+  clip-path:polygon(0 var(--notch),var(--notch) var(--notch),var(--notch) 0,calc(100% - var(--notch)) 0,calc(100% - var(--notch)) var(--notch),100% var(--notch),100% calc(100% - var(--notch)),calc(100% - var(--notch)) calc(100% - var(--notch)),calc(100% - var(--notch)) 100%,var(--notch) 100%,var(--notch) calc(100% - var(--notch)),0 calc(100% - var(--notch)));
+}
+.label{font-family:var(--display);font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ion);outline-offset:3px}
+.btn{
+  font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.2em;text-transform:uppercase;
+  background:var(--nova);color:var(--void);border:0;padding:14px 22px;min-height:52px;
+  clip-path:polygon(0 6px,6px 6px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 6px) calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 6px),0 calc(100% - 6px));
+  box-shadow:inset 0 -4px 0 rgba(0,0,0,.25);
+}
+.btn:active{transform:translateY(2px);box-shadow:none}
+.btn.ghost{background:transparent;color:var(--star);box-shadow:inset 0 0 0 2px var(--edge)}
+.icon-btn{background:rgba(10,7,24,.7);border:2px solid var(--edge);width:40px;height:40px;display:grid;place-items:center;font-family:var(--display);font-size:16px;color:var(--dim)}
+
+/* ---------- title screen ---------- */
+#title{justify-content:center;padding-block:8px 24px;gap:12px}
+.logo{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(56px, 17vw, 104px);line-height:.9;letter-spacing:.04em;text-align:center;
+  color:var(--star);text-shadow:4px 0 var(--nova),-4px 0 var(--ion);text-wrap:balance}
+.tag{margin:0;text-align:center;font-family:var(--display);color:var(--ion);letter-spacing:.3em;font-size:14px;text-transform:uppercase}
+.pitch{margin:0 auto;max-width:34ch;text-align:center;color:var(--star);font-size:15px}
+.ladder{padding:18px 18px 14px;display:flex;flex-direction:column;gap:10px}
+.ladder-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.ladder ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.ladder li{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;padding:3px 0;border-bottom:1px dashed rgba(139,132,187,.22);font-size:13px}
+.ladder li:last-child{border-bottom:0}
+.sw{width:12px;height:12px}
+.ladder .dname{font-family:var(--display);font-size:15px;letter-spacing:.06em}
+.ladder .odds{color:var(--dim);font-variant-numeric:tabular-nums;text-align:right}
+.example{font-size:13px;color:var(--dim);margin:0}
+.example b{color:var(--star);font-weight:500}
+.title-actions{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.best{text-align:center;color:var(--dim);font-size:13px;margin:0}
+
+/* ---------- game screen ---------- */
+#game{gap:10px}
+.hud{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch}
+.readout{padding:8px 12px 6px;min-width:0}
+.readout .val{font-family:var(--display);font-size:clamp(17px,5vw,24px);line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hudDist{color:var(--ion)}
+#hudScore{color:var(--nova);text-align:right}
+.readout.right{text-align:right}
+.progress{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.pips{display:flex;gap:4px}
+.pip{width:14px;height:14px;background:var(--panel);box-shadow:inset 0 0 0 2px var(--edge)}
+.pip.done{background:var(--ion);box-shadow:none}
+.pip.now{background:var(--nova);box-shadow:none}
+.progress .label{font-size:10px;letter-spacing:.24em}
+
+.scene-wrap{position:relative;flex:1 1 auto;min-height:170px;}
+#scene{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.scene-ui{position:absolute;inset:8px 8px auto 8px;display:flex;justify-content:space-between;pointer-events:none}
+.scene-ui button{pointer-events:auto}
+.dest-banner{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);text-align:center;pointer-events:none;width:max-content;max-width:calc(100% - 16px)}
+.dest-banner.top{bottom:auto;top:56px}
+.dest-banner .dn{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 2px 0 var(--void)}
+.dest-banner .dk{font-size:12px;color:var(--star);letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 0 var(--void)}
+
+.card{padding:16px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.qhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.qhead .label{color:var(--nova)}
+#timerNum{font-family:var(--display);font-size:16px;color:var(--ion);font-variant-numeric:tabular-nums}
+#timerNum.low{color:var(--thrust)}
+.question{margin:0;font-family:var(--display);font-weight:600;font-size:clamp(24px, 6.6vw, 32px);line-height:1.15;text-wrap:balance}
+.hint{margin:0;color:var(--dim);font-size:13px}
+.timer{height:6px;background:var(--edge)}
+.timer i{display:block;height:100%;width:100%;background:var(--ion);transform-origin:left center}
+.timer.low i{background:var(--thrust)}
+form.answer{display:flex;gap:8px}
+#guess{flex:1;min-width:0;font-family:var(--mono);font-size:18px;color:var(--star);background:var(--void);border:2px solid var(--edge);padding:12px 12px;border-radius:0;-webkit-appearance:none;appearance:none}
+#guess::placeholder{color:#5a5390}
+#guess:focus{border-color:var(--ion);outline:none}
+form.answer .btn{font-size:16px;padding:12px 16px}
+.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* result */
+.verdict{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.verdict .you{margin:0;font-size:15px;min-width:0;overflow-wrap:anywhere}
+.verdict .you q{color:var(--star);font-weight:600}
+.verdict .you span{color:var(--dim);font-size:13px}
+.pts{font-family:var(--display);font-weight:700;font-size:30px;color:var(--nova);line-height:1;white-space:nowrap}
+.bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.bars li{display:grid;grid-template-columns:minmax(0,1fr) 46px;gap:8px;align-items:center;font-size:13px}
+.bar{position:relative;height:22px;background:rgba(46,39,102,.55);overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:#3b3388}
+.bar span{position:relative;padding:0 8px;line-height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.bars li.mine .bar i{background:var(--nova)}
+.bars li.mine .bar{box-shadow:inset 0 0 0 2px var(--nova)}
+.bars li.mine .bar i{opacity:.55}
+.bars li.mine .bar span{color:var(--star);font-weight:600}
+.bars .pct{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:3px 8px;border:1px solid var(--edge);color:var(--ion)}
+.sub{display:flex;flex-direction:column;gap:6px}
+
+/* ---------- log ---------- */
+#log{padding-block:8px 24px}
+.log-hero{padding:20px 18px;display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center}
+.log-hero .big{font-family:var(--display);font-weight:700;font-size:clamp(34px,10vw,52px);color:var(--ion);line-height:1.05;font-variant-numeric:tabular-nums}
+.log-hero .rank{font-family:var(--display);font-size:20px;color:var(--nova);letter-spacing:.08em}
+.log-hero p{margin:0;color:var(--dim);font-size:13px}
+.log-table{padding:8px 14px}
+.log-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px 0;border-bottom:1px dashed rgba(139,132,187,.22)}
+.log-row:last-child{border-bottom:0}
+.log-row .q{grid-column:1/-1;font-size:12px;color:var(--dim)}
+.log-row .a{font-weight:600;overflow-wrap:anywhere}
+.log-row .d{font-family:var(--display);font-size:14px;letter-spacing:.06em;text-align:right;white-space:nowrap}
+.log-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.log-actions .btn{font-size:16px}
+#copied{text-align:center;color:var(--ion);font-size:13px;min-height:1.5em;margin:0}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion: reduce){ .shake{animation:none} }
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div id="app">
+
+  <!-- TITLE -->
+  <section id="title" class="screen">
+    <h1 class="logo">FAR<br>OUT</h1>
+    <p class="tag">The rarer the answer, the farther you fly</p>
+    <p class="pitch">Seven prompts. Name anything that fits. Say what everyone says and you barely leave orbit. Think of the answer nobody else does and you're headed for another star.</p>
+
+    <div class="title-actions">
+      <button class="btn" id="launch" type="button">Launch</button>
+      <p class="best" id="best"></p>
+    </div>
+
+    <div class="panel ladder">
+      <div class="ladder-head">
+        <span class="label">Flight ladder</span>
+        <span class="label" style="letter-spacing:.18em">players who say it</span>
+      </div>
+      <ol id="ladder"></ol>
+      <p class="example">"A fruit or vegetable that's red inside": <b>tomato</b> barely clears orbit. <b>Blood orange</b> gets you to Mars.</p>
+    </div>
+
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="screen" hidden>
+    <div class="hud">
+      <div class="panel readout"><div class="label">Distance</div><div class="val" id="hudDist">0 km</div></div>
+      <div class="progress"><div class="pips" id="pips"></div><div class="label" id="hudProg">Prompt 1 of 7</div></div>
+      <div class="panel readout right"><div class="label">Score</div><div class="val" id="hudScore">0</div></div>
+    </div>
+
+    <div class="scene-wrap">
+      <canvas id="scene" aria-hidden="true"></canvas>
+      <div class="scene-ui">
+        <button class="icon-btn" id="abort" type="button" aria-label="Quit to title">&#x2715;</button>
+        <button class="icon-btn" id="mute" type="button" aria-label="Sound on">&#x266A;</button>
+      </div>
+      <div class="dest-banner" id="banner" hidden><div class="dn" id="bannerName"></div><div class="dk" id="bannerKm"></div></div>
+    </div>
+
+    <!-- ask card -->
+    <div class="panel card" id="askCard">
+      <div class="qhead"><span class="label" id="qLabel">Prompt 1 of 7</span><span id="timerNum">25s</span></div>
+      <p class="question" id="question"></p>
+      <p class="hint">&#9650; rarer answers fly farther</p>
+      <div class="timer" id="timer"><i id="timerBar"></i></div>
+      <form class="answer" id="form" autocomplete="off">
+        <label for="guess" class="sr">Your answer</label>
+        <input id="guess" name="guess" type="text" placeholder="your answer" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" maxlength="60">
+        <button class="btn" type="submit">Fire</button>
+      </form>
+    </div>
+
+    <!-- result card -->
+    <div class="panel card" id="resultCard" hidden aria-live="polite">
+      <div class="verdict">
+        <p class="you" id="you"></p>
+        <div class="pts" id="pts"></div>
+      </div>
+      <div class="sub">
+        <span class="label">Most said</span>
+        <ul class="bars" id="bars"></ul>
+      </div>
+      <div class="sub">
+        <span class="label">Deep cuts on the chart</span>
+        <div class="chips" id="cuts"></div>
+      </div>
+      <button class="btn" id="next" type="button">Next prompt</button>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <section id="log" class="screen" hidden>
+    <span class="label" style="text-align:center">Mission log</span>
+    <div class="panel log-hero">
+      <div class="label">Total distance</div>
+      <div class="big" id="logDist"></div>
+      <div class="rank" id="logRank"></div>
+      <p id="logScore"></p>
+    </div>
+    <div class="panel log-table" id="logRows"></div>
+    <div class="log-actions">
+      <button class="btn ghost" id="copy" type="button">Copy log</button>
+      <button class="btn" id="again" type="button">Fly again</button>
+    </div>
+    <p id="copied" aria-live="polite"></p>
+    <textarea id="copyBox" class="sr" aria-hidden="true" tabindex="-1"></textarea>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   QUESTION BANK
+   Each answer: "Name|share of players (%)|alias,alias"
+   Shares are hand estimates of how often people give each answer.
+   ===================================================================== */
+const BANK = [
+{q:"Name a fruit or vegetable that's red on the inside", a:`
+Tomato|30|cherry tomato,roma tomato
+Watermelon|22|
+Strawberry|12|
+Beet|8|beetroot
+Raspberry|5|
+Cherry|5|cherries
+Pomegranate|4|
+Red bell pepper|3|red pepper,bell pepper,pepper,capsicum
+Blood orange|2|moro orange
+Grapefruit|2|pink grapefruit,ruby grapefruit
+Plum|1.5|blood plum
+Dragon fruit|1.2|pitaya,pitahaya,red dragon fruit
+Guava|1|pink guava
+Red cabbage|0.8|
+Cranberry|0.8|
+Chili pepper|0.6|chili,chilli,red chili,red chilli
+Fig|0.5|
+Papaya|0.5|
+Mulberry|0.3|
+Red currant|0.3|redcurrant
+Prickly pear|0.2|cactus fruit,cactus pear
+Cara cara orange|0.15|cara cara
+Goji berry|0.15|goji,wolfberry
+Red-fleshed apple|0.1|red fleshed apple,pink pearl apple
+Lingonberry|0.1|
+Radicchio|0.1|
+Watermelon radish|0.05|
+Tamarillo|0.05|tree tomato
+Acerola|0.05|barbados cherry
+Blood lime|0.02|
+Cornelian cherry|0.02|`},
+{q:"Name a moon in our solar system", a:`
+The Moon|40|moon,luna,earth's moon,our moon
+Titan|12|
+Europa|10|
+Io|8|
+Ganymede|7|
+Phobos|5|
+Callisto|4|
+Enceladus|4|
+Deimos|3|
+Triton|3|
+Charon|2|
+Miranda|1|
+Mimas|0.6|
+Titania|0.4|
+Oberon|0.4|
+Rhea|0.3|
+Iapetus|0.3|
+Dione|0.3|
+Ariel|0.3|
+Tethys|0.2|
+Hyperion|0.2|
+Umbriel|0.15|
+Phoebe|0.1|
+Amalthea|0.1|
+Proteus|0.1|
+Nereid|0.08|
+Pan|0.06|
+Puck|0.06|
+Janus|0.05|
+Pandora|0.05|
+Prometheus|0.04|
+Epimetheus|0.04|
+Metis|0.03|
+Thebe|0.03|
+Nix|0.03|
+Hydra|0.03|
+Kerberos|0.02|
+Styx|0.02|
+Cordelia|0.02|
+Dactyl|0.02|
+Dysnomia|0.02|
+Hi'iaka|0.01|hiiaka
+Halimede|0.01|`},
+{q:"Name an animal that lives in Australia", a:`
+Kangaroo|35|roo
+Koala|25|koala bear
+Emu|6|
+Platypus|6|duck-billed platypus
+Wombat|5|
+Dingo|3|
+Tasmanian devil|3|
+Wallaby|3|
+Kookaburra|2|
+Echidna|2|spiny anteater
+Saltwater crocodile|2|crocodile,croc,saltie
+Quokka|2|
+Cassowary|1|
+Cockatoo|1|sulphur-crested cockatoo
+Possum|0.6|brushtail possum
+Box jellyfish|0.5|
+Funnel-web spider|0.5|funnel web,sydney funnel-web
+Sugar glider|0.5|
+Frilled lizard|0.5|frill-necked lizard
+Taipan|0.4|inland taipan
+Bilby|0.4|
+Great white shark|0.4|
+Galah|0.3|
+Lyrebird|0.3|
+Thorny devil|0.3|
+Numbat|0.3|
+Quoll|0.3|
+Dugong|0.3|
+Bandicoot|0.2|
+Blue-ringed octopus|0.1|
+Tree kangaroo|0.1|
+Pademelon|0.05|
+Tawny frogmouth|0.03|
+Potoroo|0.03|
+Cuscus|0.03|
+Bettong|0.02|
+Brolga|0.02|
+Wobbegong|0.02|
+Kowari|0.01|`},
+{q:"Name a pizza topping", a:`
+Pepperoni|35|
+Mushroom|12|
+Pineapple|8|
+Sausage|7|italian sausage
+Ham|5|
+Onion|5|red onion
+Olive|5|black olive
+Bell pepper|5|pepper,green pepper,peppers
+Mozzarella|3|cheese,extra cheese
+Bacon|4|
+Spinach|2|
+Anchovy|2|anchovies
+Jalapeño|2|jalapeno
+Chicken|2|bbq chicken
+Tomato|1.5|
+Basil|1.5|
+Salami|1|
+Garlic|0.8|
+Artichoke|0.8|artichoke hearts
+Corn|0.5|sweetcorn
+Prosciutto|0.5|parma ham
+Ground beef|0.5|beef,mince
+Arugula|0.4|rocket
+Feta|0.4|
+Egg|0.4|
+Ricotta|0.3|
+Broccoli|0.3|
+Shrimp|0.3|prawn
+Eggplant|0.3|aubergine
+Pesto|0.3|
+Sun-dried tomato|0.3|sundried tomato
+Goat cheese|0.3|chevre
+Gorgonzola|0.2|blue cheese
+Potato|0.2|
+Truffle|0.2|truffle oil
+Capers|0.2|caper
+Tuna|0.2|
+Fig|0.15|
+Hot honey|0.15|honey
+Burrata|0.15|
+Nduja|0.1|'nduja
+Pear|0.05|
+Clams|0.05|clam
+Kimchi|0.03|
+Pistachio|0.03|
+Banana|0.03|
+Speck|0.03|
+Calamari|0.03|squid
+Squash blossom|0.02|zucchini flower,courgette flower
+Duck|0.02|`},
+{q:"Name a breakfast food", a:`
+Eggs|20|egg,scrambled eggs,fried eggs,fried egg,boiled egg
+Pancakes|15|hotcakes,flapjacks
+Bacon|12|
+Cereal|10|
+Toast|8|
+Waffles|6|
+Oatmeal|5|porridge,oats
+French toast|4|
+Yogurt|3|yoghurt
+Bagel|3|
+Croissant|2|
+Sausage|2|
+Hash browns|2|hashbrown,hash brown
+Omelette|2|omelet
+Muffin|1|
+Granola|1|
+Avocado toast|1|
+Eggs Benedict|0.8|eggs benny
+Crêpes|0.6|crepe
+Fruit|0.5|
+Smoothie|0.5|
+Donut|0.5|doughnut
+Breakfast burrito|0.5|burrito
+Muesli|0.4|
+Grits|0.4|
+Biscuits and gravy|0.4|biscuits,biscuit
+Shakshuka|0.3|shakshouka
+Full English|0.3|english breakfast,fry up
+Congee|0.2|rice porridge,jook
+Cinnamon roll|0.2|
+Huevos rancheros|0.2|
+Quiche|0.1|
+Chilaquiles|0.1|
+Açaí bowl|0.1|acai bowl
+Pain au chocolat|0.1|
+Dosa|0.08|
+Idli|0.06|
+Black pudding|0.05|
+Frittata|0.05|
+Natto|0.05|
+Poha|0.05|
+Kedgeree|0.03|
+Kippers|0.03|kipper
+Arepa|0.03|
+Paratha|0.03|
+Tamagoyaki|0.02|
+Menemen|0.01|
+Gallo pinto|0.01|
+Ful medames|0.01|ful,foul medames
+Scrapple|0.01|`},
+{q:"Name a musical instrument", a:`
+Guitar|30|electric guitar,acoustic guitar
+Piano|25|keyboard
+Drums|12|drum,drum kit,drum set
+Violin|10|fiddle
+Flute|5|
+Trumpet|4|
+Saxophone|3|sax
+Cello|2|
+Clarinet|1.5|
+Harp|1|
+Bass|1|bass guitar,electric bass,double bass
+Ukulele|1|uke
+Trombone|0.8|
+Harmonica|0.5|
+Accordion|0.5|
+Banjo|0.5|
+Tuba|0.4|
+Organ|0.4|
+Recorder|0.4|
+Xylophone|0.4|
+Triangle|0.3|
+Bagpipes|0.3|bagpipe
+French horn|0.3|horn
+Oboe|0.3|
+Synthesizer|0.3|synth
+Viola|0.3|
+Bassoon|0.2|
+Didgeridoo|0.2|
+Sitar|0.2|
+Mandolin|0.2|
+Kazoo|0.2|
+Tambourine|0.2|
+Theremin|0.1|
+Harpsichord|0.1|
+Steel drum|0.1|steelpan,steel pan
+Marimba|0.1|
+Glockenspiel|0.1|
+Lute|0.1|
+Cowbell|0.1|
+Hurdy-gurdy|0.05|
+Koto|0.05|
+Oud|0.05|
+Keytar|0.05|
+Erhu|0.03|
+Kalimba|0.05|thumb piano
+Hang drum|0.02|handpan
+Ondes Martenot|0.005|
+Nyckelharpa|0.005|`},
+{q:"Name a country in Europe", a:`
+France|22|
+Germany|18|deutschland
+Italy|13|
+Spain|12|espana
+United Kingdom|8|uk,england,britain,great britain
+Portugal|3|
+Greece|3|
+Netherlands|3|holland
+Switzerland|2.5|
+Poland|2|
+Sweden|2|
+Norway|1.5|
+Ireland|1.5|
+Belgium|1.2|
+Austria|1|
+Denmark|1|
+Russia|1|
+Ukraine|0.8|
+Finland|0.6|
+Czechia|0.6|czech republic
+Hungary|0.5|
+Croatia|0.5|
+Iceland|0.5|
+Romania|0.4|
+Scotland|0.3|
+Luxembourg|0.3|
+Turkey|0.3|turkiye
+Wales|0.2|
+Monaco|0.2|
+Bulgaria|0.2|
+Serbia|0.2|
+Slovakia|0.15|
+Slovenia|0.15|
+Estonia|0.15|
+Malta|0.15|
+Latvia|0.1|
+Lithuania|0.1|
+Liechtenstein|0.1|
+Andorra|0.1|
+Vatican City|0.1|vatican,holy see
+Albania|0.1|
+Belarus|0.1|
+Cyprus|0.1|
+San Marino|0.08|
+Moldova|0.05|
+Montenegro|0.05|
+North Macedonia|0.05|macedonia
+Bosnia and Herzegovina|0.05|bosnia
+Kosovo|0.04|`},
+{q:"Name a famous scientist", a:`
+Albert Einstein|40|einstein
+Isaac Newton|18|newton
+Marie Curie|6|curie,madame curie
+Charles Darwin|6|darwin
+Nikola Tesla|5|tesla
+Galileo Galilei|5|galileo
+Stephen Hawking|5|hawking
+Thomas Edison|2|edison
+Richard Feynman|0.8|feynman
+Nicolaus Copernicus|0.7|copernicus
+J. Robert Oppenheimer|0.6|oppenheimer,robert oppenheimer
+Carl Sagan|0.5|sagan
+Louis Pasteur|0.5|pasteur
+Niels Bohr|0.5|bohr
+Johannes Kepler|0.5|kepler
+Neil deGrasse Tyson|0.4|degrasse tyson
+Benjamin Franklin|0.4|ben franklin
+Archimedes|0.4|
+Alan Turing|0.4|turing
+Erwin Schrödinger|0.4|schrodinger,schroedinger
+Michael Faraday|0.4|faraday
+Gregor Mendel|0.3|mendel
+Ada Lovelace|0.3|lovelace
+Rosalind Franklin|0.3|
+Aristotle|0.3|
+Werner Heisenberg|0.3|heisenberg
+Leonardo da Vinci|0.3|da vinci,leonardo
+Jane Goodall|0.2|goodall
+Max Planck|0.2|planck
+James Clerk Maxwell|0.2|maxwell
+Edwin Hubble|0.2|hubble
+Alexander Fleming|0.2|fleming
+Dmitri Mendeleev|0.2|mendeleev
+Bill Nye|0.2|
+Pythagoras|0.15|
+Leonhard Euler|0.08|euler
+Carl Friedrich Gauss|0.08|gauss
+James Watson|0.08|watson
+Francis Crick|0.08|crick
+Ernest Rutherford|0.08|rutherford
+Enrico Fermi|0.06|fermi
+Euclid|0.05|
+Robert Hooke|0.05|hooke
+Robert Boyle|0.05|boyle
+Antoine Lavoisier|0.05|lavoisier
+Linus Pauling|0.05|pauling
+Katherine Johnson|0.05|
+Paul Dirac|0.04|dirac
+Srinivasa Ramanujan|0.04|ramanujan
+Tycho Brahe|0.04|tycho,brahe
+Lise Meitner|0.03|meitner
+Emmy Noether|0.03|noether
+Vera Rubin|0.03|
+Hypatia|0.03|
+Barbara McClintock|0.02|mcclintock
+Chien-Shiung Wu|0.02|
+Ibn al-Haytham|0.02|alhazen
+Henrietta Leavitt|0.01|leavitt
+Cecilia Payne-Gaposchkin|0.01|cecilia payne
+Subrahmanyan Chandrasekhar|0.01|chandrasekhar`},
+{q:"Name a sport played with a ball", a:`
+Soccer|30|football,association football
+Basketball|25|
+Baseball|8|
+Tennis|8|
+Volleyball|6|
+American football|5|gridiron,nfl
+Golf|4|
+Rugby|3|
+Cricket|2|
+Bowling|1|ten pin bowling,tenpin
+Table tennis|1|ping pong
+Handball|1|
+Softball|0.5|
+Squash|0.5|
+Pickleball|0.4|
+Billiards|0.4|pool,eight ball
+Water polo|0.3|
+Lacrosse|0.3|
+Dodgeball|0.3|
+Field hockey|0.3|hockey
+Beach volleyball|0.2|
+Netball|0.2|
+Polo|0.2|
+Snooker|0.2|
+Kickball|0.2|
+Croquet|0.1|
+Bocce|0.1|bocce ball
+Racquetball|0.1|
+Padel|0.1|
+Australian rules football|0.1|aussie rules,afl
+Pétanque|0.08|petanque,boules
+Wiffle ball|0.05|wiffleball
+Gaelic football|0.05|
+Hurling|0.05|
+Rounders|0.05|
+Jai alai|0.02|
+Sepak takraw|0.02|takraw
+Korfball|0.02|
+Bandy|0.02|
+Goalball|0.02|
+Basque pelota|0.02|pelota
+Pesäpallo|0.01|pesapallo
+Tchoukball|0.01|
+Teqball|0.01|
+Footvolley|0.01|
+Bossaball|0.005|
+Kin-Ball|0.005|kinball`},
+{q:"Name a color", a:`
+Red|25|
+Blue|25|
+Green|12|
+Yellow|8|
+Purple|6|
+Orange|5|
+Pink|4|
+Black|4|
+White|3|
+Brown|1|
+Gray|1|grey
+Turquoise|0.6|
+Teal|0.5|
+Magenta|0.5|
+Gold|0.5|golden
+Silver|0.4|
+Maroon|0.4|
+Violet|0.4|
+Indigo|0.4|
+Cyan|0.3|
+Lavender|0.3|
+Beige|0.3|
+Navy|0.3|navy blue
+Crimson|0.2|
+Burgundy|0.2|
+Coral|0.2|
+Lime|0.2|lime green
+Fuchsia|0.15|
+Scarlet|0.15|
+Olive|0.15|olive green
+Mint|0.15|mint green
+Peach|0.15|
+Aquamarine|0.1|aqua
+Salmon|0.1|
+Tan|0.1|
+Ivory|0.1|
+Cerulean|0.08|
+Cream|0.08|
+Lilac|0.08|
+Chartreuse|0.06|
+Mauve|0.06|
+Periwinkle|0.06|
+Emerald|0.06|emerald green
+Khaki|0.05|
+Amber|0.05|
+Plum|0.05|
+Ochre|0.04|ocher
+Taupe|0.04|
+Cobalt|0.04|cobalt blue
+Vermilion|0.03|vermillion
+Sienna|0.03|burnt sienna,raw sienna
+Mahogany|0.03|
+Sepia|0.03|
+Ultramarine|0.03|
+Chestnut|0.03|
+Puce|0.02|
+Umber|0.02|burnt umber
+Saffron|0.02|
+Celadon|0.01|
+Viridian|0.01|
+Cinnabar|0.01|
+Heliotrope|0.01|
+Gamboge|0.005|
+Zaffre|0.005|
+Xanadu|0.005|
+Eigengrau|0.005|`},
+{q:"Name a dog breed", a:`
+Labrador|18|lab,labrador retriever
+Golden retriever|14|golden
+German shepherd|10|alsatian
+Poodle|7|
+Bulldog|6|english bulldog,british bulldog
+Chihuahua|6|
+Husky|5|siberian husky
+Beagle|5|
+Pug|3|
+Dachshund|3|wiener dog,sausage dog,doxie
+Rottweiler|2|rottie
+Corgi|2|welsh corgi,pembroke corgi
+French bulldog|1.5|frenchie
+Boxer|1.5|
+Border collie|1.5|collie
+Pit bull|1.5|pitbull,american pit bull terrier
+Great Dane|1.2|
+Dalmatian|1|
+Doberman|1|dobermann,doberman pinscher
+Shih Tzu|1|shihtzu
+Yorkshire terrier|1|yorkie
+Australian shepherd|0.6|aussie
+Saint Bernard|0.5|st bernard
+Greyhound|0.5|
+Bernese mountain dog|0.4|bernese
+Cocker spaniel|0.4|cocker
+Schnauzer|0.4|miniature schnauzer
+Shiba Inu|0.4|shiba
+Pomeranian|0.4|
+Maltese|0.3|
+Basset hound|0.3|basset
+Jack Russell|0.3|jack russell terrier
+Labradoodle|0.3|
+Akita|0.2|
+Samoyed|0.2|
+Boston terrier|0.2|
+Cavalier King Charles spaniel|0.2|cavalier,king charles spaniel
+Goldendoodle|0.2|
+Chow chow|0.15|chow
+Bloodhound|0.15|
+Newfoundland|0.15|newfie
+Bichon frisé|0.15|bichon,bichon frise
+Alaskan malamute|0.15|malamute
+Australian cattle dog|0.1|blue heeler,heeler
+Shar Pei|0.1|sharpei
+Weimaraner|0.1|
+Vizsla|0.1|
+Whippet|0.1|
+Great Pyrenees|0.1|pyrenean mountain dog
+Shetland sheepdog|0.1|sheltie
+Bull terrier|0.1|
+Westie|0.1|west highland terrier,west highland white terrier
+Cockapoo|0.1|
+Afghan hound|0.08|afghan
+Irish wolfhound|0.08|wolfhound
+Scottish terrier|0.08|scottie
+Papillon|0.05|
+Borzoi|0.05|
+Basenji|0.05|
+Pekingese|0.05|
+Havanese|0.05|
+Rhodesian ridgeback|0.05|ridgeback
+Lhasa Apso|0.04|
+Leonberger|0.02|
+Komondor|0.02|
+Puli|0.02|
+Xoloitzcuintli|0.02|xolo,mexican hairless
+Lagotto Romagnolo|0.01|lagotto
+Catahoula|0.01|catahoula leopard dog
+Norwegian Lundehund|0.005|lundehund
+Azawakh|0.005|
+Otterhound|0.005|
+Mudi|0.005|
+Bergamasco|0.005|`},
+{q:"Name a pasta shape", a:`
+Spaghetti|35|
+Penne|15|
+Macaroni|10|elbow,elbow macaroni,mac
+Fettuccine|6|fettucine,fettuccini
+Lasagna|5|lasagne
+Farfalle|4|bow tie,bowtie,butterfly
+Ravioli|3|
+Fusilli|3|
+Rigatoni|3|
+Linguine|3|linguini
+Rotini|2|
+Tortellini|2|
+Ziti|1.5|
+Shells|1.5|conchiglie,pasta shell
+Angel hair|1|capellini
+Gnocchi|1|
+Orzo|1|
+Tagliatelle|0.8|
+Pappardelle|0.5|
+Bucatini|0.4|
+Orecchiette|0.3|
+Cavatappi|0.3|
+Vermicelli|0.3|
+Cannelloni|0.3|
+Ditalini|0.2|
+Gemelli|0.2|
+Manicotti|0.2|
+Radiatori|0.1|
+Campanelle|0.1|
+Paccheri|0.1|
+Rotelle|0.1|wagon wheel,ruote
+Alphabet pasta|0.1|alphabet,alfabeto
+Stelline|0.05|stars
+Strozzapreti|0.05|
+Trofie|0.05|
+Casarecce|0.05|
+Mafaldine|0.05|mafalda
+Cappelletti|0.05|
+Agnolotti|0.05|
+Lumache|0.03|
+Anelli|0.03|
+Garganelli|0.03|
+Cascatelli|0.03|
+Pici|0.02|
+Busiate|0.01|
+Corzetti|0.01|
+Lorighittas|0.005|
+Su filindeu|0.005|filindeu`},
+{q:"Name something that's yellow", a:`
+Banana|35|
+Sun|20|the sun
+Lemon|10|
+Sunflower|3|
+Corn|3|corn on the cob,maize
+School bus|3|bus
+Taxi|2|cab,taxi cab
+Cheese|2|
+Rubber duck|1.5|duck,rubber ducky,ducky
+Bee|1|bumblebee
+Pineapple|1|
+Butter|1|
+Egg yolk|1|yolk
+Mustard|1|
+Canary|0.5|
+Pencil|0.5|
+Gold|0.5|
+Chick|0.5|baby chick
+Minion|0.5|
+Tennis ball|0.4|
+SpongeBob|0.3|spongebob squarepants
+Pikachu|0.3|
+Daffodil|0.3|
+Dandelion|0.3|
+Highlighter|0.3|
+Star|0.3|
+Mango|0.3|
+Lemonade|0.2|
+Smiley face|0.2|smiley,emoji
+Sticky note|0.2|post it,post it note
+Homer Simpson|0.1|the simpsons,simpsons
+Big Bird|0.1|
+Pac-Man|0.1|pacman
+Tweety|0.1|tweety bird
+Yellow card|0.1|
+Sulfur|0.1|sulphur
+Turmeric|0.1|
+Caution tape|0.1|
+Lightning|0.1|lightning bolt
+Squash|0.1|
+Saffron|0.05|
+Buttercup|0.05|
+Hard hat|0.05|
+Pollen|0.05|
+Yellow Submarine|0.05|
+Goldfinch|0.03|
+Citrine|0.02|
+Forsythia|0.01|
+Canola|0.01|rapeseed`},
+{q:"Name a gemstone", a:`
+Diamond|30|
+Ruby|18|
+Emerald|15|
+Sapphire|12|
+Amethyst|6|
+Pearl|3|
+Opal|3|
+Topaz|2.5|
+Jade|2|
+Garnet|1.5|
+Onyx|1|
+Aquamarine|1|
+Turquoise|1|
+Peridot|0.6|
+Quartz|0.6|rose quartz
+Citrine|0.5|
+Lapis lazuli|0.4|lapis
+Tanzanite|0.3|
+Moonstone|0.3|
+Tourmaline|0.3|
+Amber|0.3|
+Obsidian|0.2|
+Agate|0.2|
+Alexandrite|0.15|
+Jasper|0.1|
+Malachite|0.1|
+Morganite|0.1|
+Spinel|0.1|
+Zircon|0.1|
+Coral|0.1|
+Labradorite|0.05|
+Bloodstone|0.05|
+Carnelian|0.05|
+Beryl|0.05|
+Sunstone|0.03|
+Chrysoberyl|0.02|
+Kunzite|0.02|
+Iolite|0.02|
+Painite|0.02|
+Benitoite|0.01|
+Grandidierite|0.005|
+Jeremejevite|0.005|`},
+{q:"Name a constellation", a:`
+Orion|25|the hunter
+Ursa Major|20|big dipper,great bear,the plough,plough
+Cassiopeia|7|
+Ursa Minor|6|little dipper,little bear
+Scorpius|5|scorpio,scorpion
+Leo|4|
+Gemini|3|
+Taurus|3|
+Andromeda|3|
+Cygnus|2|swan,northern cross
+Pegasus|2|
+Sagittarius|2|
+Draco|1.5|dragon
+Aquarius|1.5|
+Aries|1|
+Cancer|1|
+Virgo|1|
+Crux|1|southern cross
+Libra|0.8|
+Capricornus|0.8|capricorn
+Pisces|0.8|
+Lyra|0.6|
+Perseus|0.6|
+Canis Major|0.6|great dog
+Hercules|0.5|
+Aquila|0.3|
+Centaurus|0.3|
+Boötes|0.2|bootes
+Ophiuchus|0.2|
+Cepheus|0.15|
+Auriga|0.1|
+Phoenix|0.1|
+Corona Borealis|0.1|
+Canis Minor|0.1|
+Hydra|0.1|
+Delphinus|0.05|
+Carina|0.05|
+Lepus|0.05|
+Monoceros|0.03|
+Columba|0.03|
+Lynx|0.03|
+Camelopardalis|0.02|
+Vulpecula|0.02|
+Fornax|0.02|
+Sculptor|0.02|
+Musca|0.02|
+Tucana|0.02|
+Pavo|0.02|
+Pyxis|0.01|
+Microscopium|0.01|
+Horologium|0.01|
+Antlia|0.01|
+Volans|0.01|
+Chamaeleon|0.01|`},
+{q:"Name something with wheels", a:`
+Car|40|automobile
+Bicycle|15|bike
+Bus|6|
+Skateboard|5|
+Truck|5|lorry
+Train|3|
+Motorcycle|3|motorbike
+Wheelchair|2|
+Shopping cart|2|shopping trolley,trolley,cart
+Scooter|2|
+Stroller|1.5|pram,pushchair,buggy
+Roller skates|1.5|rollerblades,inline skates,skates
+Wheelbarrow|1|
+Office chair|1|chair,desk chair
+Suitcase|0.8|luggage,rolling suitcase
+Tractor|0.5|
+Airplane|0.5|plane,aeroplane,jet
+Wagon|0.5|red wagon,covered wagon
+Tricycle|0.4|trike
+Unicycle|0.3|
+Lawn mower|0.3|lawnmower
+Go-kart|0.2|kart
+Tram|0.2|streetcar
+Rickshaw|0.1|tuk tuk
+Segway|0.1|
+Forklift|0.1|
+Chariot|0.1|
+Roller coaster|0.1|
+Ambulance|0.1|
+Fire truck|0.1|fire engine
+Pizza cutter|0.1|pizza wheel
+Toy car|0.1|hot wheels,matchbox car
+Hand truck|0.05|dolly
+Hoverboard|0.05|
+Gurney|0.05|
+Longboard|0.05|
+Lunar rover|0.03|moon buggy,mars rover,rover
+Tank|0.03|
+Cannon|0.03|
+Stagecoach|0.02|
+Penny-farthing|0.02|
+Heelys|0.02|
+Rollator|0.02|walker
+Velocipede|0.005|`},
+{q:"Name a word that rhymes with moon", a:`
+Spoon|25|
+Soon|15|
+June|10|
+Tune|8|
+Noon|8|
+Balloon|6|
+Raccoon|4|racoon
+Cartoon|3|
+Cocoon|2|
+Dune|2|
+Lagoon|1|
+Monsoon|1|
+Prune|0.8|
+Typhoon|0.5|
+Harpoon|0.5|
+Loon|0.5|
+Baboon|0.5|
+Croon|0.4|
+Rune|0.4|
+Maroon|0.4|
+Honeymoon|0.4|
+Afternoon|0.4|
+Macaroon|0.3|
+Platoon|0.3|
+Saloon|0.3|
+Boon|0.3|
+Goon|0.3|
+Swoon|0.3|
+Neptune|0.3|
+Tycoon|0.2|
+Buffoon|0.2|
+Immune|0.2|
+Lampoon|0.1|
+Commune|0.1|
+Pontoon|0.1|
+Bassoon|0.1|
+Doubloon|0.05|
+Festoon|0.05|
+Pantaloon|0.05|
+Tribune|0.05|
+Strewn|0.05|
+Opportune|0.05|
+Spittoon|0.03|
+Dragoon|0.03|
+Attune|0.03|
+Hewn|0.03|
+Impugn|0.02|
+Importune|0.01|
+Picayune|0.01|`},
+];
+
+/* =====================================================================
+   DESTINATIONS — points decide how far the rocket goes
+   ===================================================================== */
+const DEST = [
+  {min:0,  key:"leo",     name:"Low Earth Orbit",  km:400,     color:"#7fb2ff"},
+  {min:20, key:"moon",    name:"The Moon",         km:384400,  color:"#cfc9e6"},
+  {min:35, key:"mars",    name:"Mars",             km:225e6,   color:"#ff7a4d"},
+  {min:50, key:"belt",    name:"Asteroid Belt",    km:4.0e8,   color:"#c2a27f"},
+  {min:62, key:"jupiter", name:"Jupiter",          km:7.8e8,   color:"#e8b27a"},
+  {min:74, key:"saturn",  name:"Saturn",           km:1.4e9,   color:"#f1d38a"},
+  {min:86, key:"neptune", name:"Neptune",          km:4.5e9,   color:"#6b8bff"},
+  {min:96, key:"proxima", name:"Proxima Centauri", km:4.0e13,  color:"#ff5fa2"},
+];
+const SCRUB = {key:"pad", name:"Scrubbed", km:0, color:"#8b84bb"};
+const TOTAL = 7, TIME = 25;
+
+/* ---------- scoring ---------- */
+// share (%) -> points: 40% ≈ 11 pts, 2% ≈ 49, 0.1% ≈ 86, ≤0.03% = 100
+const RARITY_SPAN = 3.5;
+function pointsFor(pct){ return Math.max(5, Math.min(100, Math.round(-Math.log10(pct/100)/RARITY_SPAN*100))); }
+function pctForPoints(p){ return 100*Math.pow(10, -RARITY_SPAN*p/100); }
+function destFor(points){ let d = DEST[0]; for(const x of DEST) if(points >= x.min) d = x; return d; }
+
+/* ---------- answer matching ---------- */
+function stem(w){
+  if(w.length <= 3) return w;
+  if(w.length > 4 && /ies$/.test(w)) return w.slice(0,-3)+"y";
+  if(w.length > 5 && /oes$/.test(w)) return w.slice(0,-2);
+  if(/(ses|xes|ches|shes)$/.test(w)) return w.slice(0,-2);
+  if(/s$/.test(w) && !/(ss|us|is)$/.test(w)) return w.slice(0,-1);
+  return w;
+}
+function norm(s){
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim()
+    .replace(/^(a|an|the|some|my)\s+/,"")
+    .split(" ").filter(Boolean).map(stem).join(" ");
+}
+function lev(a,b){
+  if(Math.abs(a.length-b.length) > 2) return 9;
+  const m=a.length,n=b.length; let prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++){ cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); } prev=cur; }
+  return prev[n];
+}
+const tol = len => len <= 4 ? 0 : len <= 7 ? 1 : 2;
+
+const QUESTIONS = BANK.map(({q,a}) => {
+  const answers = a.trim().split("\n").map(line => {
+    const [name,pct,al] = line.split("|");
+    return {name:name.trim(), pct:parseFloat(pct), aliases:(al||"").split(",").map(s=>s.trim()).filter(Boolean)};
+  }).sort((x,y)=>y.pct-x.pct);
+  const map = new Map();
+  for(const ans of answers){
+    for(const k of [ans.name, ...ans.aliases]){
+      const n = norm(k); if(!n) continue;
+      if(!map.has(n)) map.set(n, ans);
+      const c = n.replace(/ /g,""); if(!map.has(c)) map.set(c, ans);
+    }
+  }
+  return {q, answers, map};
+});
+
+function findAnswer(Q, raw){
+  const n = norm(raw); if(!n) return null;
+  const c = n.replace(/ /g,"");
+  if(Q.map.has(n)) return Q.map.get(n);
+  if(Q.map.has(c)) return Q.map.get(c);
+  const words = n.split(" ");
+  for(let len = words.length-1; len >= 1; len--){       // "a ripe tomato please" -> "tomato"
+    for(let s = 0; s + len <= words.length; s++){
+      const sub = words.slice(s, s+len).join(" ");
+      if(Q.map.has(sub)) return Q.map.get(sub);
+      const sc = sub.replace(/ /g,""); if(sc.length > 3 && Q.map.has(sc)) return Q.map.get(sc);
+    }
+  }
+  let best = null, bestD = 9;                          // typo tolerance
+  for(const [k,ans] of Q.map){
+    const t = tol(k.length); if(!t) continue;
+    const d = lev(c, k.replace(/ /g,""));
+    if(d <= t && d < bestD){ best = ans; bestD = d; }
+  }
+  return best;
+}
+
+/* ---------- formatting ---------- */
+function kmLong(km){
+  if(km === 0) return "0 km";
+  if(km < 1e6) return Math.round(km).toLocaleString("en-US")+" km";
+  if(km < 1e9) return Math.round(km/1e6).toLocaleString("en-US")+" million km";
+  if(km < 1e12) return (km/1e9).toFixed(1)+" billion km";
+  return (km/1e12).toFixed(1)+" trillion km";
+}
+function kmShort(km){
+  if(km < 1e3) return Math.round(km)+" km";
+  if(km < 1e6) return Math.round(km/1e3)+"K km";
+  if(km < 1e9) return Math.round(km/1e6)+"M km";
+  if(km < 1e12) return (km/1e9).toFixed(1)+"B km";
+  return (km/1e12).toFixed(1)+"T km";
+}
+function pctText(p){ return p >= 1 ? Math.round(p)+"%" : p >= 0.1 ? p.toFixed(1)+"%" : "<0.1%"; }
+function pctRange(p){ return p >= 10 ? Math.round(p)+"%" : p >= 1 ? p.toFixed(0)+"%" : p.toFixed(p < 0.1 ? 2 : 1)+"%"; }
+const esc = s => s.replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const $ = s => document.querySelector(s);
+
+/* ---------- storage (optional) ---------- */
+const store = {
+  get(k,d){ try{ const v = localStorage.getItem("farout:"+k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem("farout:"+k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* =====================================================================
+   SOUND — tiny synth, starts only after a tap
+   ===================================================================== */
+let actx = null, muted = store.get("muted", false);
+function audio(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(actx && actx.state === "suspended") actx.resume(); return actx; }
+function tone(freq, dur, type="square", vol=0.05, delay=0){
+  if(muted || !actx) return;
+  const t = actx.currentTime + delay, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t+dur+0.02);
+}
+function whoosh(dur=1.2){
+  if(muted || !actx) return;
+  const len = actx.sampleRate*dur, buf = actx.createBuffer(1, len, actx.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i] = (Math.random()*2-1);
+  const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain(), t = actx.currentTime;
+  src.buffer = buf; f.type = "lowpass"; f.frequency.setValueAtTime(300,t); f.frequency.exponentialRampToValueAtTime(2400,t+dur*0.5); f.frequency.exponentialRampToValueAtTime(200,t+dur);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.12,t+0.15); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  src.connect(f).connect(g).connect(actx.destination); src.start(t);
+}
+function arrivalChime(level){ const base=[262,294,330,349,392,440,494,523]; for(let i=0;i<=Math.min(level,4);i++) tone(base[Math.min(7,level+i)]*(i>2?2:1), .18, "square", .04, i*.08); }
+
+/* =====================================================================
+   BACKGROUND STARFIELD
+   ===================================================================== */
+const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sky = $("#sky"), sctx = sky.getContext("2d");
+let stars = [], warp = 0, warpTarget = 0;
+function sizeSky(){
+  const s = 2; sky.width = Math.ceil(innerWidth/s); sky.height = Math.ceil(innerHeight/s);
+  stars = Array.from({length: Math.round(sky.width*sky.height/220)}, () => ({x:Math.random()*sky.width, y:Math.random()*sky.height, z:Math.random()*0.9+0.1, tw:Math.random()*6.28}));
+}
+function drawSky(dt){
+  warp += (warpTarget - warp) * Math.min(1, dt*3);
+  sctx.clearRect(0,0,sky.width,sky.height);
+  const speed = reduceMotion ? 0 : (0.6 + warp*40);
+  for(const st of stars){
+    st.y += speed * st.z * dt * 6; st.tw += dt*2;
+    if(st.y > sky.height){ st.y -= sky.height; st.x = Math.random()*sky.width; }
+    const a = st.z > .7 ? 1 : st.z > .4 ? .7 : .4;
+    const flick = warp < .2 ? (0.75 + 0.25*Math.sin(st.tw)) : 1;
+    sctx.globalAlpha = a * flick;
+    sctx.fillStyle = st.z > .85 ? "#ffd6ea" : st.z > .6 ? "#efeaff" : "#9fa3ff";
+    const len = 1 + Math.floor(warp * 14 * st.z);
+    sctx.fillRect(Math.floor(st.x), Math.floor(st.y - len + 1), 1, len);
+  }
+  sctx.globalAlpha = 1;
+}
+
+/* =====================================================================
+   FLIGHT SCENE — rocket + destination body, drawn at low resolution
+   ===================================================================== */
+const scene = $("#scene"), ctx = scene.getContext("2d");
+const PX = 3;
+const ROCKET = [
+  "...N...",
+  "..NNN..",
+  "..WWW..",
+  ".WWWWG.",
+  ".WCCWG.",
+  ".WCCWG.",
+  ".WWWWG.",
+  ".WWWWG.",
+  ".WWWWG.",
+  "NWWWWGN",
+  "NNWWWNN",
+  "N.GGG.N",
+];
+const RCOL = {N:"#ff5fa2", W:"#efeaff", G:"#a9a1d6", C:"#5ef2ff"};
+let S = {mode:"pad", t0:0, dest:null};
+function sizeScene(){
+  const r = scene.getBoundingClientRect();
+  scene.width = Math.max(40, Math.round(r.width/PX)); scene.height = Math.max(40, Math.round(r.height/PX));
+}
+function hash(x,y){ const s = Math.sin(x*12.9898 + y*78.233)*43758.5453; return s - Math.floor(s); }
+function shade(hex, f){ const n=parseInt(hex.slice(1),16); let r=n>>16,g=n>>8&255,b=n&255; r=Math.max(0,Math.min(255,r*f))|0; g=Math.max(0,Math.min(255,g*f))|0; b=Math.max(0,Math.min(255,b*f))|0; return `rgb(${r},${g},${b})`; }
+
+function drawRocket(x, y, t, flame){
+  x = Math.round(x); y = Math.round(y);
+  ROCKET.forEach((row, j) => { for(let i=0;i<row.length;i++){ const c = row[i]; if(c !== "."){ ctx.fillStyle = RCOL[c]; ctx.fillRect(x+i, y+j, 1, 1); } } });
+  if(flame > 0){
+    const L = Math.max(1, Math.round(flame * (3 + Math.sin(t*40)*1.5 + Math.random()*1.5)));
+    for(let k=0;k<L;k++){
+      ctx.fillStyle = k < 1 ? "#fff3c4" : k < L*0.6 ? "#ffb547" : "#ff5fa2";
+      const w = k < L*0.5 ? 3 : 1; ctx.fillRect(x + (w === 3 ? 2 : 3), y + ROCKET.length + k, w, 1);
+    }
+  }
+}
+function disc(cx, cy, r, colorAt){
+  const x0 = Math.floor(cx-r), x1 = Math.ceil(cx+r), y0 = Math.floor(cy-r), y1 = Math.ceil(cy+r);
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+    const dx = x+.5-cx, dy = y+.5-cy; if(dx*dx+dy*dy > r*r) continue;
+    const lit = (-dx*0.6 - dy*0.5)/r;                // light from top-left
+    ctx.fillStyle = colorAt(dx/r, dy/r, x, y, lit > 0.35 ? 1.15 : lit < -0.45 ? 0.6 : lit < -0.1 ? 0.8 : 1);
+    ctx.fillRect(x, y, 1, 1);
+  }
+}
+function drawBody(key, cx, cy, r, t){
+  const B = {
+    leo: () => disc(cx, cy, r, (u,v,x,y,f) => shade(hash(Math.floor(x/3),Math.floor(y/3)) > .62 ? "#3fae6a" : "#2f6fd6", f)),
+    moon: () => disc(cx, cy, r, (u,v,x,y,f) => shade(hash(Math.floor(x/2),Math.floor(y/2)) > .8 ? "#8f89a8" : "#cfc9e6", f)),
+    mars: () => disc(cx, cy, r, (u,v,x,y,f) => shade(v < -0.82 ? "#ffe2d6" : hash(Math.floor(x/3),Math.floor(y/2)) > .7 ? "#a83a22" : "#e2603a", f)),
+    belt: () => { for(let i=0;i<14;i++){ const a = i*0.9 + t*0.15*(i%2?1:-1), rr = r*(0.5 + (i%5)*0.16); disc(cx + Math.cos(a)*rr*1.3, cy + Math.sin(a)*rr*0.6, 1.5 + (i%3)*1.4, (u,v,x,y,f)=>shade(i%2?"#a58b6f":"#c2a27f", f)); } },
+    jupiter: () => disc(cx, cy, r, (u,v,x,y,f) => { const band = Math.floor((v+1)*4.5 + Math.sin(u*3)*0.3); const spot = (u-0.3)**2*6 + (v-0.35)**2*30 < 0.18; return shade(spot ? "#c4553a" : ["#e8c79c","#c98d57","#f0dcb8","#b8784a","#ead2ac","#c98d57","#e8c79c","#b8784a","#f0dcb8"][band] || "#e8c79c", f); }),
+    saturn: () => {
+      const ring = (front) => { for(let a=0;a<Math.PI*2;a+=0.02){ const px = cx + Math.cos(a)*r*1.9, py = cy + Math.sin(a)*r*0.42; if((Math.sin(a) > 0) !== front) continue; ctx.fillStyle = "#d9c38f"; ctx.fillRect(Math.round(px), Math.round(py), 1, 1); ctx.fillStyle="#9c8a63"; ctx.fillRect(Math.round(cx + Math.cos(a)*r*1.6), Math.round(cy + Math.sin(a)*r*0.35), 1, 1); } };
+      ring(false); disc(cx, cy, r, (u,v,x,y,f) => shade(Math.floor((v+1)*3)%2 ? "#f1d38a" : "#d8b46a", f)); ring(true);
+    },
+    neptune: () => disc(cx, cy, r, (u,v,x,y,f) => shade(Math.abs(v+0.2) < 0.12 ? "#9fb6ff" : hash(Math.floor(x/4),y) > .9 ? "#3550c8" : "#4f6cf0", f)),
+    proxima: () => {
+      for(let k=4;k>=1;k--){ ctx.globalAlpha = 0.08*k; disc(cx, cy, r*(1+k*0.35), () => "#ff5fa2"); }
+      ctx.globalAlpha = 1; disc(cx, cy, r*0.75, (u,v,x,y,f) => shade(hash(x,y+Math.floor(t*6)) > .85 ? "#ffe3a1" : "#ff8a4d", f > 1 ? 1.2 : 1));
+    },
+  };
+  (B[key] || B.leo)();
+}
+function drawEarthHorizon(offset){
+  const R = scene.width * 1.4, cx = scene.width/2, cy = scene.height + R - 10 + offset;
+  ctx.fillStyle = "#5ef2ff"; ctx.globalAlpha = .25;
+  ctx.beginPath(); ctx.arc(cx, cy, R+2, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+  // pixel-perfect fill
+  for(let x=0;x<scene.width;x++){
+    const top = Math.ceil(cy - Math.sqrt(Math.max(0, R*R - (x+.5-cx)**2)));
+    for(let y=Math.max(0,top); y<scene.height; y++){ ctx.fillStyle = hash(Math.floor(x/4),Math.floor(y/3)) > .66 ? "#3fae6a" : "#2f6fd6"; ctx.fillRect(x,y,1,1); }
+  }
+}
+const ease = p => p<.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;
+const FLIGHT_MS = reduceMotion ? 300 : 2200;
+
+function drawScene(now){
+  const W = scene.width, H = scene.height, t = now/1000;
+  ctx.clearRect(0,0,W,H);
+  const rw = ROCKET[0].length, rh = ROCKET.length;
+  const padY = H - 10 - rh - 2, midX = W/2 - rw/2;
+  const bodyR = Math.max(8, Math.min(W, H) * 0.24);
+  const restX = W*0.66, restY = H*0.42;
+
+  if(S.mode === "pad"){
+    drawEarthHorizon(0);
+    drawRocket(midX, padY + Math.sin(t*2)*0.6, t, 0.35);
+  } else if(S.mode === "scrub"){
+    drawEarthHorizon(0);
+    const p = Math.min(1, (now - S.t0)/700);
+    drawRocket(midX + (p < 1 ? Math.round(Math.sin(t*60)) : 0), padY, t, 0);
+    for(let i=0;i<6;i++){ ctx.fillStyle = "#8b84bb"; ctx.globalAlpha = .5*(1-p*0.6); ctx.fillRect(Math.round(midX + 3 + Math.sin(i*2+t*3)*(4+i*1.5)), Math.round(padY + rh - i*1.2 - p*6), 2, 2); }
+    ctx.globalAlpha = 1;
+  } else {
+    const p = Math.min(1, (now - S.t0)/FLIGHT_MS);
+    if(p < 0.45){
+      const q = ease(p/0.45);
+      drawEarthHorizon(q * H * 0.9);
+      drawRocket(midX, padY - q*(padY + rh + 20), t, 1.6);
+    } else {
+      const q = ease((p-0.45)/0.55);
+      drawBody(S.dest.key, restX, -bodyR*2.2 + q*(restY + bodyR*2.2), bodyR, t);
+      const rx = W*0.24, ry = H*0.55;
+      drawRocket(rx, H + 10 - q*(H + 10 - ry) + Math.sin(t*2)*0.6*q, t, 1.4 - q*0.9);
+      if(p >= 1 && S.mode === "flight"){ S.mode = "arrived"; onArrive(); }
+    }
+  }
+}
+
+/* =====================================================================
+   GAME
+   ===================================================================== */
+const G = {order:[], i:0, score:0, km:0, log:[], deadline:0, timerId:0, answered:false};
+
+function showScreen(id){ for(const s of ["title","game","log"]) $("#"+s).hidden = s !== id; $("#app").scrollTop = 0; requestAnimationFrame(sizeScene); }
+
+function buildLadder(){
+  const rows = [...DEST].reverse().map((d, idx, arr) => {
+    const hi = pctForPoints(d.min), next = DEST[DEST.indexOf(d)+1];
+    const lo = next ? pctForPoints(next.min) : 0;
+    const odds = d.min === 0 ? `${pctRange(lo)}+` : !next ? `under ${pctRange(hi)}` : `${pctRange(lo)}–${pctRange(hi)}`;
+    return `<li><span class="sw" style="background:${d.color}"></span><span class="dname">${d.name}</span><span class="odds">${odds}</span></li>`;
+  });
+  $("#ladder").innerHTML = rows.join("");
+}
+function showBest(){
+  const b = store.get("best", null);
+  $("#best").textContent = b ? `Your farthest flight: ${kmLong(b.km)} · ${b.score} pts` : "Best on iPhone: tap “Share → Add to Home Screen” for full screen.";
+}
+
+function pickQuestions(){
+  const idx = QUESTIONS.map((_,i)=>i);
+  for(let i=idx.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [idx[i],idx[j]] = [idx[j],idx[i]]; }
+  return idx.slice(0, TOTAL);
+}
+
+function startGame(){
+  audio(); tone(392,.08); tone(523,.1,"square",.05,.08);
+  Object.assign(G, {order:pickQuestions(), i:0, score:0, km:0, log:[]});
+  showScreen("game"); updateHud(); ask();
+}
+
+function updateHud(done = G.i){
+  $("#hudDist").textContent = kmShort(G.km);
+  $("#hudScore").textContent = G.score;
+  $("#pips").innerHTML = Array.from({length:TOTAL}, (_,k) => `<span class="pip ${k < done ? "done" : k === done ? "now" : ""}"></span>`).join("");
+  $("#hudProg").textContent = `Prompt ${Math.min(G.i+1,TOTAL)} of ${TOTAL}`;
+}
+
+function ask(){
+  const Q = QUESTIONS[G.order[G.i]];
+  G.answered = false;
+  $("#qLabel").textContent = `Prompt ${G.i+1} of ${TOTAL}`;
+  $("#question").textContent = Q.q;
+  $("#askCard").hidden = false; $("#resultCard").hidden = true; $("#banner").hidden = true;
+  const input = $("#guess"); input.value = ""; input.disabled = false;
+  S = {mode:"pad", t0:0, dest:null}; warpTarget = 0;
+  updateHud();
+  input.focus({preventScroll:true});
+  G.deadline = performance.now() + TIME*1000;
+  clearInterval(G.timerId); G.timerId = setInterval(tick, 100); tick();
+}
+function tick(){
+  const left = Math.max(0, G.deadline - performance.now()), secs = Math.ceil(left/1000);
+  $("#timerBar").style.transform = `scaleX(${left/(TIME*1000)})`;
+  $("#timerNum").textContent = secs + "s";
+  const low = secs <= 5; $("#timer").classList.toggle("low", low); $("#timerNum").classList.toggle("low", low);
+  if(left <= 0) resolve(null);
+}
+
+function resolve(raw){
+  if(G.answered) return; G.answered = true;
+  clearInterval(G.timerId);
+  const input = $("#guess"); input.blur(); input.disabled = true;
+  const Q = QUESTIONS[G.order[G.i]];
+  const hit = raw ? findAnswer(Q, raw) : null;
+  const pts = hit ? pointsFor(hit.pct) : 0;
+  const dest = hit ? destFor(pts) : SCRUB;
+  G.log.push({q:Q.q, raw, hit, pts, dest});
+  G.score += pts; G.km += dest.km;
+
+  $("#askCard").hidden = true;
+  renderResult(Q, raw, hit, pts, dest);
+  if(hit){
+    S = {mode:"flight", t0:performance.now(), dest}; warpTarget = 1; whoosh(FLIGHT_MS/1000);
+    $("#resultCard").hidden = true;
+  } else {
+    S = {mode:"scrub", t0:performance.now(), dest:null};
+    tone(110,.25,"sawtooth",.05); tone(82,.35,"sawtooth",.05,.2);
+    showBanner(dest, raw ? "Not on our star charts" : "Out of time");
+    $("#resultCard").hidden = false; updateHud(G.i + 1);
+  }
+}
+function onArrive(){
+  warpTarget = 0;
+  const e = G.log[G.log.length-1];
+  arrivalChime(DEST.indexOf(e.dest));
+  showBanner(e.dest, kmLong(e.dest.km) + " from Earth");
+  $("#resultCard").hidden = false;
+  updateHud(G.i + 1);
+  $("#next").focus({preventScroll:true});
+}
+function showBanner(dest, sub){
+  $("#banner").classList.toggle("top", dest === SCRUB);
+  $("#bannerName").textContent = dest.name; $("#bannerName").style.color = dest.color;
+  $("#bannerKm").textContent = sub; $("#banner").hidden = false;
+}
+
+function renderResult(Q, raw, hit, pts, dest){
+  if(hit){
+    const shown = norm(raw) === norm(hit.name) ? esc(hit.name) : `${esc(raw)}</q> <span>→ ${esc(hit.name)}</span><q>`;
+    $("#you").innerHTML = `<q>${shown}</q><br><span>About ${pctText(hit.pct)} of players say this.</span>`;
+  } else if(raw){
+    $("#you").innerHTML = `<q>${esc(raw)}</q><br><span>That isn't on our star charts, so the launch was scrubbed. Check the spelling or try a more common name next time.</span>`;
+  } else {
+    $("#you").innerHTML = `<span>The clock ran out before ignition.</span>`;
+  }
+  $("#pts").textContent = "+" + pts;
+  const top = Q.answers.slice(0,5), max = top[0].pct;
+  const rows = top.map(a => `<li class="${a === hit ? "mine" : ""}"><div class="bar"><i style="width:${(a.pct/max*100).toFixed(1)}%"></i><span>${esc(a.name)}</span></div><span class="pct">${pctText(a.pct)}</span></li>`);
+  if(hit && !top.includes(hit)) rows.push(`<li class="mine"><div class="bar"><i style="width:${Math.max(2,hit.pct/max*100).toFixed(1)}%"></i><span>${esc(hit.name)} (you)</span></div><span class="pct">${pctText(hit.pct)}</span></li>`);
+  $("#bars").innerHTML = rows.join("");
+  const cuts = Q.answers.slice(-4).reverse();
+  $("#cuts").innerHTML = cuts.map(a => `<span class="chip">${esc(a.name)}</span>`).join("");
+  $("#next").textContent = G.i + 1 >= TOTAL ? "See mission log" : "Next prompt";
+}
+
+function next(){
+  audio(); tone(523,.06);
+  G.i++;
+  if(G.i >= TOTAL) return finish();
+  ask();
+}
+
+const RANKS = [[0,"Grounded"],[150,"Orbital tourist"],[250,"Lunar regular"],[350,"Red planet pilot"],[430,"Belt miner"],[500,"Gas giant skimmer"],[580,"Outer system ace"],[650,"Interstellar"]];
+function finish(){
+  clearInterval(G.timerId); warpTarget = 0;
+  let rank = RANKS[0][1]; for(const [m,r] of RANKS) if(G.score >= m) rank = r;
+  $("#logDist").textContent = kmLong(G.km);
+  $("#logRank").textContent = rank;
+  $("#logScore").textContent = `${G.score} of ${TOTAL*100} points`;
+  $("#logRows").innerHTML = G.log.map(e => `<div class="log-row"><span class="q">${esc(e.q)}</span><span class="a">${e.raw ? esc(e.hit ? e.hit.name : e.raw) : "—"}</span><span class="d" style="color:${e.dest.color}">${e.dest.name} · ${e.pts}</span></div>`).join("");
+  $("#copied").textContent = "";
+  const best = store.get("best", null);
+  if(!best || G.score > best.score) store.set("best", {score:G.score, km:G.km});
+  showScreen("log");
+}
+function logText(){
+  return `FAR OUT · ${G.score}/${TOTAL*100} pts · ${kmLong(G.km)}\n` + G.log.map((e,k) => `${k+1}. ${e.raw ? (e.hit ? e.hit.name : e.raw) : "(no answer)"} → ${e.dest.name} (+${e.pts})`).join("\n");
+}
+function copyLog(){
+  const text = logText(), done = () => { $("#copied").textContent = "Copied. Paste it to challenge a friend."; };
+  const fallback = () => { const ta = $("#copyBox"); ta.value = text; ta.select(); try{ document.execCommand("copy"); done(); }catch(e){ $("#copied").textContent = "Copy isn't available here."; } };
+  try{ navigator.clipboard.writeText(text).then(done, fallback); }catch(e){ fallback(); }
+}
+
+/* ---------- wiring ---------- */
+$("#launch").addEventListener("click", startGame);
+$("#again").addEventListener("click", startGame);
+$("#next").addEventListener("click", next);
+$("#copy").addEventListener("click", copyLog);
+$("#abort").addEventListener("click", () => { clearInterval(G.timerId); warpTarget = 0; showBest(); showScreen("title"); });
+function paintMute(){ $("#mute").innerHTML = muted ? "&#x2715;&#x266A;" : "&#x266A;"; $("#mute").setAttribute("aria-label", muted ? "Sound off" : "Sound on"); }
+$("#mute").addEventListener("click", () => { muted = !muted; store.set("muted", muted); audio(); paintMute(); if(!muted) tone(660,.06); });
+$("#form").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = $("#guess").value.trim();
+  if(!v){ const f = $("#form"); f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake"); return; }
+  resolve(v);
+});
+
+addEventListener("resize", () => { sizeSky(); sizeScene(); });
+if(window.ResizeObserver) new ResizeObserver(sizeScene).observe($(".scene-wrap"));
+
+let last = performance.now();
+function loop(now){ const dt = Math.min(0.05, (now-last)/1000); last = now; drawSky(dt); if(!$("#game").hidden) drawScene(now); requestAnimationFrame(loop); }
+
+buildLadder(); showBest(); paintMute(); sizeSky(); sizeScene();
+requestAnimationFrame(loop);
+
+// test hook
+window.__farout = {QUESTIONS, findAnswer, pointsFor, destFor};
+</script>
+</body>
+</html>
