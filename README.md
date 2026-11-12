@@ -9,15 +9,15 @@ There are two worlds:
 
 | World | Questions | Journey |
 | --- | --- | --- |
-| **Space** | General knowledge | Climb 28 stops from the launch pad, past the Moon, Saturn and a black hole, to the edge of the universe |
-| **Ocean** | Sea, water and fish | Dive 28 stops in a submarine, past coral reefs, the Titanic and black smokers, to the Challenger Deep |
+| **Space** | General knowledge (91 question sets) | Climb 28 stops from the launch pad, past the Moon, Saturn and a black hole, to the edge of the universe |
+| **Ocean** | Sea, water and fish (46 question sets) | Dive 28 stops in a submarine, past coral reefs, the Titanic and black smokers, to the Challenger Deep |
 
 And three ways to play:
 
 | Rules | How it works |
 | --- | --- |
 | **Classic** | 7 prompts, 25 seconds each. Get as far as you can. |
-| **Daily** | Today's 7 prompts, the same for every player. Your first run of the day is the one that counts. |
+| **Daily** | Today's 7 prompts, the same for every player. Your first run of the day is the one that counts. It rotates through the whole bank before repeating. |
 | **Survival** | No prompt limit, 18 seconds each. Three misses end the run. |
 
 ## Play it
@@ -38,6 +38,13 @@ Everyone who plays through this server shares one scoreboard.
 - The repo root also works as a static site with no build step (GitHub Pages, for example).
 
 Without the server, scores are kept on the device only.
+
+## No repeats
+
+The game remembers which questions you have completed and deals the ones you haven't first.
+Completed questions only come back once you have been through every question in that world, oldest first.
+This is saved on the device. On the claude.ai page it is also saved to your private cloud folder,
+so it follows you between devices. The Daily ignores it, because everyone must get the same questions.
 
 ## How scoring works
 
@@ -91,11 +98,11 @@ src/
     game.js           one run: answer, advance, summary
     stats.js          rankings maths and the estimated crowd
     rng.js            seeded randomness for the Daily
-  data/               the question banks (space.bank.js, ocean.bank.js)
+  data/               the question banks, split into themed files per world
   worlds/             each world's stops, art, sounds and backdrop
   gfx/                canvas toolkit, pixel sprites, the journey animation
   audio/synth.js      sound effects made in code
-  services/           storage, callsigns, the scoreboard back-ends
+  services/           storage, callsigns, the scoreboard back-ends, completed-question tracking
   ui/                 one file per screen
 server/server.js      static files plus the scoreboard API, no dependencies
 scripts/build.mjs     bundles everything into dist/
@@ -112,7 +119,7 @@ npm run build    bundle into dist/
 
 ### Add or change questions
 
-Edit `src/data/space.bank.js` or `src/data/ocean.bank.js`. Each line of a question is one of:
+Edit a file in `src/data/` (for example `space.food.bank.js` or `ocean.more.bank.js`), or add a new file and list it in `src/data/index.js`. Each line of a question is one of:
 
 ```
 Tomato|30|cherry tomato,roma tomato         one answer: name | share | aliases

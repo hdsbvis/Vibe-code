@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addRun, cleanPlayer, makeRun } from '../src/services/board.js';
+import { mergeSeen } from '../src/services/progress.js';
 
 test('a run records world, rules, score, stops and time', () => {
   const run = makeRun({ worldId: 'ocean', rulesId: 'daily', score: 321, stops: 14, day: '2026-11-11' });
@@ -40,4 +41,9 @@ test('records written by other browsers are cleaned before use', () => {
   assert.equal(player.best['space:classic'].s, 1e6);
   assert.deepEqual(cleanPlayer('u_2', undefined).runs, []);
   assert.equal(cleanPlayer('u_2', 'garbage').name, 'Unknown');
+});
+
+test('progress from another device merges in as older', () => {
+  assert.deepEqual(mergeSeen(['b', 'c'], ['a', 'b', 'z']), ['a', 'z', 'b', 'c']);
+  assert.deepEqual(mergeSeen([], ['a']), ['a']);
 });

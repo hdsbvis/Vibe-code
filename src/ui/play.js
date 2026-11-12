@@ -10,6 +10,7 @@ import { Game } from '../core/game.js';
 import { STREAK_EVERY, STREAK_BONUS } from '../core/scoring.js';
 import { shuffle } from '../core/rng.js';
 import { ui, unlock } from '../audio/synth.js';
+import { progress } from '../services/progress.js';
 import { toggleMute } from './menu.js';
 import { showResults } from './results.js';
 
@@ -235,6 +236,7 @@ function resolve(raw) {
   $('#question').textContent = question.q;
   const scoreBefore = game.score;
   const out = raw == null ? game.timeout() : game.answer(raw);
+  progress.mark(world.id, question.id); // completed: don't deal it again until the rest are done
   renderResult(question, raw || '', out);
 
   $('#game').classList.remove('asking');
@@ -283,7 +285,7 @@ export function startRun(worldId = session.worldId, rulesId = session.rulesId) {
   ui.start();
   world = setWorld(worldId);
   rules = RULES[rulesId];
-  game = new Game({ worldId, rules, questions: BANKS[worldId] });
+  game = new Game({ worldId, rules, questions: BANKS[worldId], seen: progress.seen(worldId) });
   scene.setWorld(world);
   go('game');
   $('#hudMetric').textContent = world.metric;

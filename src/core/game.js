@@ -19,11 +19,12 @@ import { makeDeck, dayKey } from './rules.js';
  */
 
 export class Game {
-  constructor({ worldId, rules, questions, day = dayKey(), rnd = Math.random }) {
+  /** `seen` lists the ids of prompts this player has already completed, oldest first. */
+  constructor({ worldId, rules, questions, day = dayKey(), rnd = Math.random, seen = [] }) {
     this.worldId = worldId;
     this.rules = rules;
     this.day = day;
-    this.deck = makeDeck(questions, rules, { worldId, day, rnd });
+    this.deck = makeDeck(questions, rules, { worldId, day, rnd, seen });
     this.planned = this.deck.planned;
     this.score = 0;
     this.stops = 0;

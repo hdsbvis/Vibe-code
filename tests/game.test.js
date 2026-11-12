@@ -102,3 +102,34 @@ test('daily deals the same prompts to everyone on a given day', () => {
   assert.equal(a.length, 7);
   assert.notDeepEqual(a, other);
 });
+
+test('prompts already completed are dealt last', () => {
+  const seen = questions.slice(0, questions.length - 7).map((q) => q.id);
+  const fresh = new Set(questions.slice(-7).map((q) => q.id));
+  const deck = makeDeck(questions, RULES.classic, { seen, rnd: mulberry32(9) });
+  assert.deepEqual(new Set(deck.planned.map((q) => q.id)), fresh);
+
+  // With only 3 fresh prompts left, the 4 completed longest ago fill the gap.
+  const mostlySeen = questions.slice(0, questions.length - 3).map((q) => q.id);
+  const mixed = makeDeck(questions, RULES.classic, { seen: mostlySeen, rnd: mulberry32(9) }).planned.map((q) => q.id);
+  const expected = new Set([...questions.slice(-3).map((q) => q.id), ...mostlySeen.slice(0, 4)]);
+  assert.deepEqual(new Set(mixed), expected);
+
+  const survival = makeDeck(questions, RULES.survival, { seen: [questions[0].id], rnd: mulberry32(9) });
+  const dealt = questions.map(() => survival.draw().id);
+  assert.equal(dealt[dealt.length - 1], questions[0].id);
+});
+
+test('the daily does not repeat a prompt until the whole bank has been used', () => {
+  const days = Math.floor(questions.length / 7);
+  const start = Math.ceil(Date.UTC(2026, 10, 12) / 86400000 / days) * days; // first day of a cycle
+  const used = new Set();
+  for (let d = 0; d < days; d++) {
+    const day = new Date((start + d) * 86400000).toISOString().slice(0, 10);
+    for (const q of makeDeck(questions, RULES.daily, { worldId: 'space', day }).planned) {
+      assert.ok(!used.has(q.id), `${q.id} repeated on ${day}`);
+      used.add(q.id);
+    }
+  }
+  assert.equal(used.size, days * 7);
+});

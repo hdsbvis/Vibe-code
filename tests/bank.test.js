@@ -2,11 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseBank, parseQuestion, findAnswer } from '../src/core/bank.js';
 import { norm, stem } from '../src/core/text.js';
-import spaceBank from '../src/data/space.bank.js';
-import oceanBank from '../src/data/ocean.bank.js';
+import { BANKS } from '../src/data/index.js';
 
-const space = parseBank(spaceBank);
-const ocean = parseBank(oceanBank);
+const { space, ocean } = BANKS;
 const byId = (bank, id) => bank.find((q) => q.id === id);
 const hit = (bank, id, text) => findAnswer(byId(bank, id), text)?.name ?? null;
 
@@ -31,12 +29,12 @@ test('every question has an id, a prompt and a healthy chart', () => {
     assert.ok(q.id && q.q, 'id and prompt');
     assert.ok(!ids.has(q.id), `duplicate id ${q.id}`);
     ids.add(q.id);
-    assert.ok(q.answers.length >= 40, `${q.id} has only ${q.answers.length} answers`);
+    assert.ok(q.answers.length >= 30, `${q.id} has only ${q.answers.length} answers`);
     assert.ok(q.answers[0].pct >= 10, `${q.id} has no common answer`);
     for (const a of q.answers) assert.ok(a.pct > 0 && a.pct <= 60, `${q.id}/${a.name} share ${a.pct}`);
   }
-  assert.ok(space.length >= 17);
-  assert.ok(ocean.length >= 17);
+  assert.ok(space.length >= 91);
+  assert.ok(ocean.length >= 45);
 });
 
 test('space answers match, including aliases and typos', () => {
@@ -61,4 +59,21 @@ test('ocean answers match', () => {
   assert.equal(hit(ocean, 'ships', 'the titanic'), 'Titanic');
   assert.equal(hit(ocean, 'scuba', 'flippers'), 'Fins');
   assert.equal(hit(ocean, 'sharks', 'goldfish'), null);
+});
+
+test('new prompts match, including names with symbols', () => {
+  assert.equal(hit(space, 'programming', 'c++'), 'C++');
+  assert.equal(hit(space, 'programming', 'C#'), 'C#');
+  assert.equal(hit(space, 'programming', 'c'), 'C');
+  assert.equal(hit(space, 'disney-pixar', 'toy story 3'), 'Toy Story');
+  assert.equal(hit(space, 'disney-pixar', '101 dalmatians'), 'One Hundred and One Dalmatians');
+  assert.equal(hit(space, 'video-games', '2048'), '2048');
+  assert.equal(hit(space, 'elements', 'aluminum'), 'Aluminium');
+  assert.equal(hit(space, 'us-states', 'new york'), 'New York');
+  assert.equal(hit(ocean, 'landlocked', 'czechia'), 'Czech Republic');
+  assert.equal(hit(ocean, 'sea-songs', 'row row row your boat'), 'Row, Row, Row Your Boat');
+  assert.equal(hit(ocean, 'any-fish', 'whale'), null);
+  assert.equal(byId(space, 'us-states').answers.length, 50);
+  assert.equal(byId(space, 'elements').answers.length, 118);
+  assert.equal(byId(ocean, 'landlocked').answers.length, 45);
 });

@@ -5,6 +5,8 @@ import { Scene } from '../gfx/scene.js';
 import { WORLDS, WORLD_LIST } from '../worlds/index.js';
 import { RULES, RULE_LIST, dayKey } from '../core/rules.js';
 import { store } from '../services/storage.js';
+import { progress } from '../services/progress.js';
+import { BANKS } from '../data/index.js';
 import { ui, unlock } from '../audio/synth.js';
 import { startRun } from './play.js';
 
@@ -22,9 +24,17 @@ function paint() {
   }
   $('#go').textContent = world.cta;
   const played = session.rulesId === 'daily' && store.get(`daily:${session.worldId}:${dayKey()}`) != null;
-  $('#selectNote').textContent = played
-    ? "You've already played today's Daily here. Another go is practice and won't change the board."
-    : '';
+  const total = BANKS[session.worldId].length;
+  const done = progress.count(session.worldId, BANKS[session.worldId]);
+  const notes = [];
+  if (played) notes.push("You've already played today's Daily here. Another go is practice and won't change the board.");
+  else if (session.rulesId === 'daily') notes.push('Daily questions are the same for everyone, so they may include ones you have done.');
+  notes.push(
+    done >= total
+      ? `You've completed all ${total} questions in ${world.name}. They now come back oldest first.`
+      : `${done} of ${total} questions completed in ${world.name}. Completed ones don't come back until you've done them all.`,
+  );
+  $('#selectNote').textContent = notes.join(' ');
 }
 
 export function initSelect() {

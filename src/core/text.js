@@ -17,6 +17,8 @@ export function norm(text) {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/&/g, ' and ')
+    .replace(/\+/g, ' plus ')
+    .replace(/#/g, ' sharp ')
     .replace(/['’]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
