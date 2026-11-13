@@ -7,6 +7,9 @@ import { RULES, RULE_LIST, dayKey } from '../core/rules.js';
 import { store } from '../services/storage.js';
 import { progress } from '../services/progress.js';
 import { BANKS } from '../data/index.js';
+import { icon } from './icons.js';
+
+const RULE_ICONS = { classic: 'flag', daily: 'calendar', survival: 'heart', endless: 'infinity' };
 import { ui, unlock } from '../audio/synth.js';
 import { startRun } from './play.js';
 
@@ -41,13 +44,13 @@ export function initSelect() {
   $('#worldCards').innerHTML = WORLD_LIST.map(
     (w) => `<button class="world-card" type="button" role="radio" data-world="${w.id}" aria-checked="false">
       <canvas aria-hidden="true"></canvas>
-      <span class="wname">${esc(w.name)}</span>
+      <span class="wname">${icon(w.id === 'ocean' ? 'wave' : 'planet')}${esc(w.name)}</span>
       <span class="wblurb">${esc(w.blurb)}</span>
     </button>`,
   ).join('');
   $('#ruleCards').innerHTML = RULE_LIST.map(
     (r) => `<button class="rule-card" type="button" role="radio" data-rules="${r.id}" aria-checked="false">
-      <span class="rname">${esc(r.name)}</span><span class="rbest"></span>
+      <span class="rname">${icon(RULE_ICONS[r.id] || 'flag')}${esc(r.name)}</span><span class="rbest"></span>
       <span class="rblurb">${esc(r.blurb)}</span>
     </button>`,
   ).join('');

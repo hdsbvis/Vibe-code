@@ -1,4 +1,4 @@
-// The three ways to play, and how each one deals prompts.
+// The four ways to play, and how each one deals prompts.
 import { hashSeed, mulberry32, shuffle } from './rng.js';
 
 export const RULES = {
@@ -27,9 +27,18 @@ export const RULES = {
     seconds: 18,
     strikes: 3,
   },
+  endless: {
+    id: 'endless',
+    name: 'Endless',
+    blurb: 'Never ends. Misses cost nothing. Stop whenever you like.',
+    prompts: Infinity,
+    seconds: 30,
+    strikes: Infinity,
+    endless: true,
+  },
 };
 
-export const RULE_LIST = [RULES.classic, RULES.daily, RULES.survival];
+export const RULE_LIST = [RULES.classic, RULES.daily, RULES.survival, RULES.endless];
 
 /** The day a Daily run belongs to, in UTC so it is the same for every player. */
 export function dayKey(date = new Date()) {

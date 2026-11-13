@@ -113,7 +113,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ion); outli
   animation: flicker 4s infinite;
 }
 .tag { margin: 0; text-align: center; font-family: var(--display); color: var(--ion); letter-spacing: .28em; font-size: 13px; text-transform: uppercase; }
-.hero { position: relative; height: 170px; overflow: hidden; }
+.hero { position: relative; height: 150px; overflow: hidden; }
 #heroScene { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .hero-cap {
   position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); width: max-content; max-width: 100%;
@@ -309,3 +309,88 @@ form.answer .btn { font-size: 16px; padding: 12px 16px; }
 .screen > .label, .screen > .fine, .tag, .where, .progress .label, .bar h2, #copied {
   text-shadow: 0 1px 0 var(--void), 0 0 6px var(--void), 0 0 2px var(--void);
 }
+
+/* ---------- icons ---------- */
+.ico { width: 1em; height: 1em; flex: none; display: inline-block; vertical-align: -0.12em; margin-right: .45em; image-rendering: pixelated; }
+.icon-btn .ico { width: 18px; height: 18px; margin: 0; }
+.btn .ico { width: .9em; height: .9em; }
+.label .ico { width: 10px; height: 10px; margin-right: 6px; }
+.readout .label { display: flex; align-items: center; white-space: nowrap; }
+.readout.right .label { justify-content: flex-end; }
+.readout .label span[data-icon] { display: contents; }
+.readout .label .ico { width: 9px; height: 9px; margin-right: 5px; }
+.chip .ico { width: 9px; height: 9px; margin-right: 5px; }
+.stats span .ico { width: 9px; height: 9px; margin-right: 4px; }
+.where-streak .ico { width: 11px; height: 11px; margin-right: 5px; animation: flick .35s steps(2) infinite; }
+.rule-card .rname .ico, .world-card .wname .ico { width: 15px; height: 15px; margin-right: 8px; }
+.rule-card[aria-checked="true"] .rname .ico { animation: bob 1.2s ease-in-out infinite; }
+.chip-btn .ico { width: 12px; height: 12px; }
+#mPlay .ico { animation: nudge 1.4s ease-in-out infinite; }
+@keyframes flick { 50% { transform: translateY(-1px) scaleY(1.15); } }
+@keyframes bob { 50% { transform: translateY(-2px); } }
+@keyframes nudge { 50% { transform: translateX(3px); } }
+
+.next-row { display: flex; gap: 8px; }
+.next-row #next { flex: 2; }
+.next-row #finish { flex: 1; font-size: 15px; letter-spacing: .12em; }
+
+/* ---------- notices: meteor showers, whales, off the charts ---------- */
+#notices {
+  position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 6px);
+  display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; width: max-content; max-width: calc(100% - 32px);
+}
+.notice {
+  display: flex; align-items: center; padding: 8px 14px; background: var(--void);
+  border: 1px solid var(--ion); color: var(--ion); font-family: var(--display); font-size: 13px; letter-spacing: .16em; text-transform: uppercase;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ion) 35%, transparent);
+  animation: noticeIn 3.6s ease-in-out both;
+}
+.notice .ico { width: 12px; height: 12px; animation: flick .5s steps(2) infinite; }
+@keyframes noticeIn { 0% { opacity: 0; transform: translateY(-12px); } 10%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-8px); } }
+
+/* ---------- menu ticker ---------- */
+.ticker { min-height: 40px; display: flex; align-items: center; gap: 10px; overflow: hidden; padding: 8px 10px; border-top: 1px dashed var(--edge); border-bottom: 1px dashed var(--edge); background: color-mix(in srgb, var(--void) 55%, transparent); }
+.ticker-label { flex: none; font-family: var(--display); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--nova); display: flex; align-items: center; }
+.ticker-label .ico { width: 11px; height: 11px; animation: flick .8s steps(2) infinite; }
+.ticker-text { min-width: 0; font-size: 12.5px; color: var(--star); }
+.ticker-text.roll { animation: tickIn .5s ease-out both; }
+@keyframes tickIn { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---------- screen effect: an old monitor in Space, rippling light in the Ocean ---------- */
+#crt { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+#crt::before, #crt::after { content: ""; position: absolute; inset: 0; }
+/* Space: scan lines, a faint roll bar and a dark vignette */
+#crt::before {
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .22) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+#crt::after {
+  background:
+    linear-gradient(to bottom, transparent 0%, rgba(255, 255, 255, .035) 48%, rgba(255, 255, 255, .06) 50%, rgba(255, 255, 255, .035) 52%, transparent 100%) 0 0 / 100% 260px no-repeat,
+    radial-gradient(130% 95% at 50% 45%, transparent 58%, rgba(0, 0, 0, .55) 100%);
+  animation: roll 7s linear infinite;
+}
+@keyframes roll { from { background-position: 0 -260px, 0 0; } to { background-position: 0 calc(100vh + 260px), 0 0; } }
+/* Ocean: soft wavy lines that drift, light ripples, and a blue vignette */
+:root[data-world="ocean"] #crt::before {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='6'%3E%3Cpath d='M0 3 Q15 0 30 3 T60 3 T90 3 T120 3' fill='none' stroke='%23000' stroke-opacity='.22' stroke-width='1'/%3E%3C/svg%3E") 0 0 / 120px 6px repeat;
+  mix-blend-mode: multiply;
+  animation: sway 6s linear infinite;
+}
+:root[data-world="ocean"] #crt::after {
+  background:
+    radial-gradient(40% 18% at 30% 20%, rgba(180, 240, 255, .07), transparent 70%),
+    radial-gradient(35% 15% at 75% 35%, rgba(180, 240, 255, .06), transparent 70%),
+    radial-gradient(130% 95% at 50% 45%, transparent 55%, rgba(0, 18, 40, .6) 100%);
+  animation: ripple 9s ease-in-out infinite alternate;
+}
+@keyframes sway { from { background-position: 0 0; } to { background-position: 120px 6px; } }
+@keyframes ripple { 0% { background-position: 0 0, 0 0, 0 0; opacity: .85; } 100% { background-position: 40px 20px, -50px 10px, 0 0; opacity: 1; } }
+/* the colour fringe on big pixel text */
+:root:not([data-world="ocean"]) .logo, :root:not([data-world="ocean"]) .hero-card .big { animation: flicker 4s infinite, jitter 6s steps(1) infinite; }
+@keyframes jitter { 0%, 96%, 100% { transform: none; } 97% { transform: translateX(2px); } 98% { transform: translateX(-1px); } }
+:root[data-world="ocean"] .logo { animation: flicker 4s infinite, swell 5s ease-in-out infinite; }
+@keyframes swell { 50% { transform: translateY(3px) skewX(-1.5deg); } }
+@media (prefers-reduced-motion: reduce) { #crt::after, #crt::before { animation: none !important; } }

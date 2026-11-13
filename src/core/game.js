@@ -107,6 +107,12 @@ export class Game {
     return this.answer('');
   }
 
+  /** End the run now (Endless runs only end this way). */
+  finish() {
+    this.over = true;
+    if (!this.resolved) this.resolved = true;
+  }
+
   /** Move to the next prompt. Returns false when the run has ended. */
   advance() {
     if (this.over) return false;

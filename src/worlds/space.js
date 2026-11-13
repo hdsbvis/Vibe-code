@@ -4,6 +4,7 @@ import {
 } from '../gfx/canvas.js';
 import { sprite } from '../gfx/sprites.js';
 import { tone, hiss } from '../audio/synth.js';
+import { spacePlace, hslHex } from './procgen.js';
 
 const LY = 9.461e12; // kilometres in a light-year
 const TAU = Math.PI * 2;
@@ -56,6 +57,58 @@ const PAINT = {
   ice: (tx, ty) => (hash(fl(tx / 2), fl(ty / 2)) > 0.7 ? '#bfe6ff' : '#eef8ff'),
 };
 
+// Painters for generated planets, one style per planet type, coloured from the planet's hue.
+const genPainters = new Map();
+function genPaint(gen) {
+  const key = `${gen.type}:${gen.seed}`;
+  let paint = genPainters.get(key);
+  if (paint) return paint;
+  const h = gen.hue;
+  const c = (dh, s, l) => hslHex(h + dh, s, l);
+  const sd = gen.seed % 97;
+  switch (gen.type) {
+    case 'gas': {
+      const bands = [c(0, 0.55, 0.72), c(0.03, 0.6, 0.55), c(-0.02, 0.45, 0.8), c(0.05, 0.6, 0.48), c(0, 0.5, 0.66), c(0.08, 0.55, 0.6)];
+      paint = (tx, ty, v, lon) => {
+        if (Math.abs(wrap(lon) - 2.4) < 0.3 && Math.abs(v - 0.25) < 0.1) return c(0.5, 0.6, 0.55);
+        return pick(bands, (v + 1) * 4 + Math.sin(tx * 0.13 + sd) * 0.6 + fbm(tx * 0.08, ty * 0.3) * 0.8);
+      };
+      break;
+    }
+    case 'ocean':
+      paint = (tx, ty, v) => (Math.abs(v) > 0.82 ? '#f2f8ff' : fbm(tx * 0.07 + sd, ty * 0.07) > 0.62 ? c(0.3, 0.45, 0.55) : fbm(tx * 0.2, ty * 0.2 + sd) > 0.72 ? '#eef4ff' : c(0, 0.7, 0.42));
+      break;
+    case 'lava':
+      paint = (tx, ty) => { const n = fbm(tx * 0.12 + sd, ty * 0.12); return Math.abs(n - 0.5) < 0.03 ? '#ffd84d' : Math.abs(n - 0.5) < 0.06 ? '#ff7a2a' : n > 0.6 ? '#3a2420' : '#241414'; };
+      break;
+    case 'ice':
+      paint = (tx, ty) => { const n = fbm(tx * 0.1 + sd, ty * 0.1); return Math.abs(n - 0.5) < 0.025 ? c(0, 0.6, 0.55) : n > 0.55 ? '#eef8ff' : c(0, 0.45, 0.82); };
+      break;
+    case 'jungle':
+      paint = (tx, ty, v) => (Math.abs(v) > 0.86 ? '#eef4ff' : fbm(tx * 0.08 + sd, ty * 0.08) > 0.55 ? c(0, 0.6, 0.35) : fbm(tx * 0.25, ty * 0.25) > 0.6 ? c(0.05, 0.6, 0.48) : c(0.25, 0.6, 0.4));
+      break;
+    case 'crystal':
+      paint = (tx, ty) => { const k = hash(fl(tx / 4) + sd, fl(ty / 4)); return k > 0.8 ? '#ffffff' : k > 0.55 ? c(0, 0.7, 0.7) : k > 0.3 ? c(0.08, 0.6, 0.55) : c(-0.06, 0.65, 0.42); };
+      break;
+    case 'toxic':
+      paint = (tx, ty, v) => pick([c(0, 0.75, 0.55), c(0.04, 0.7, 0.42), c(-0.03, 0.8, 0.62), c(0.08, 0.6, 0.35)], (v + 1) * 2 + fbm(tx * 0.15 + sd, ty * 0.2) * 1.8);
+      break;
+    default: // rocky
+      paint = (tx, ty) => (hash(fl(tx / 3) + sd, fl(ty / 3)) > 0.84 ? c(0, 0.15, 0.3) : fbm(tx * 0.1, ty * 0.1 + sd) > 0.55 ? c(0, 0.25, 0.5) : c(0.02, 0.2, 0.62));
+  }
+  genPainters.set(key, paint);
+  return paint;
+}
+
+function drawMoons(V, gen, cx, cy, r, t, front) {
+  for (let k = 0; k < gen.moons; k++) {
+    const a = t * (0.7 - k * 0.15) + k * 2.1;
+    if ((Math.sin(a) > 0) !== front) continue;
+    const mr = 1.4 + ((gen.seed + k) % 3) * 0.7;
+    sphere(V, cx + Math.cos(a) * r * (1.6 + k * 0.35), cy + Math.sin(a) * r * 0.32, mr, k % 2 ? PAINT.moon : PAINT.mercury, t * 0.2);
+  }
+}
+
 const beyondPainters = new Map();
 function beyondPaint(seed) {
   let paint = beyondPainters.get(seed);
@@ -106,23 +159,23 @@ const ROUTE = [
 ];
 const LAST = ROUTE.length - 1;
 
+// Past the edge of the universe, every stop is generated.
+const generated = new Map();
 function stop(i) {
   if (i <= LAST) return ROUTE[i];
-  const n = i - LAST;
-  return {
-    name: `Uncharted Universe ${n}`,
-    kind: 'planet',
-    beyond: i,
-    km: null,
-    halo: hsl(hash(i, 3), 0.7, 0.6),
-    crew: ALIEN(hsl((hash(i, 3) + 0.4) % 1, 0.9, 0.7), 2 + (n % 3)),
-    spin: 0.12,
-  };
+  let place = generated.get(i);
+  if (!place) {
+    place = spacePlace(i, i - LAST);
+    if (generated.size > 400) generated.clear();
+    generated.set(i, place);
+  }
+  return place;
 }
 
 const commas = (n) => Math.round(n).toLocaleString('en-US');
 function distance(s) {
   if (s.kind === 'home') return 'On the launch pad';
+  if (s.procedural) return `Uncharted space · sector ${s.sector}`;
   if (s.km == null) return 'Off the charts';
   const km = s.km;
   if (km < 1e6) return `${commas(km)} km from Earth`;
@@ -136,6 +189,7 @@ function distance(s) {
 }
 function short(s) {
   if (s.kind === 'home') return '0 km';
+  if (s.procedural) return `Sec ${s.sector}`;
   if (s.km == null) return '???';
   const km = s.km;
   if (km < 1e3) return `${Math.round(km)} km`;
@@ -287,27 +341,40 @@ const CLOUD = Array.from({ length: 260 }, (_, i) => ({
 const PLEIADES = [[-1, -0.6], [-0.3, -0.95], [0.45, -0.5], [0.95, -0.1], [0.2, 0.25], [-0.55, 0.4], [0.75, 0.75]];
 const TRAPPIST_COLORS = ['#c9a37a', '#e0b98a', '#6fb7d6', '#7fd4c0', '#9a8fd0', '#b0c4de', '#dfe6ee'];
 
-function drawGalaxy(V, shape, cx, cy, r, t) {
+function drawGalaxy(V, shape, cx, cy, r, t, tint = null) {
   const g = V.g;
+  const [core, mid, outer] = tint || ['#fff3c4', '#ffd6ea', '#9fc4ff'];
+  if (shape === 'elliptical') {
+    glow(V, cx, cy, r * 0.55, mid, 0.6);
+    for (const [i, p] of CLOUD.entries()) {
+      const d = Math.hypot(p.x, p.y / 0.6);
+      g.globalAlpha = Math.max(0.15, 1 - d * 0.55);
+      g.fillStyle = d < 0.5 ? core : d < 1 ? mid : outer;
+      g.fillRect(Math.round(cx + p.x * r * 1.1), Math.round(cy + p.y * r * 0.75), 1, 1);
+    }
+    g.globalAlpha = 1;
+    disc(V, cx, cy, Math.max(2, r * 0.22), core);
+    return;
+  }
   if (shape === 'spiral') {
     const rot = reduceMotion ? 0 : t * 0.12;
     const cosT = Math.cos(-0.45);
     const sinT = Math.sin(-0.45);
-    glow(V, cx, cy, r * 0.35, '#ffe9b8', 1);
+    glow(V, cx, cy, r * 0.35, core, 1);
     for (const p of SPIRAL) {
       const x = Math.cos(p.a + rot) * p.r;
       const y = Math.sin(p.a + rot) * p.r * 0.42;
       g.globalAlpha = 0.45 + p.b * 0.55;
-      g.fillStyle = p.r < 0.28 ? '#fff3c4' : p.r < 0.62 ? '#ffd6ea' : '#9fc4ff';
+      g.fillStyle = p.r < 0.28 ? core : p.r < 0.62 ? mid : outer;
       g.fillRect(Math.round(cx + (x * cosT - y * sinT) * r * 1.9), Math.round(cy + (x * sinT + y * cosT) * r * 1.9), 1, 1);
     }
     g.globalAlpha = 1;
-    disc(V, cx, cy, Math.max(1.5, r * 0.14), '#fff3c4');
+    disc(V, cx, cy, Math.max(1.5, r * 0.14), core);
   } else {
     glow(V, cx, cy, r * 0.8, '#6f8fd6', 0.55);
     for (const [i, p] of CLOUD.entries()) {
       g.globalAlpha = 0.55 + p.b * 0.45;
-      g.fillStyle = i < 70 ? '#fff3c4' : p.b > 0.9 ? '#ff8ad8' : p.b > 0.5 ? '#cfe0ff' : '#8fb0ff';
+      g.fillStyle = i < 70 ? core : p.b > 0.9 ? '#ff8ad8' : p.b > 0.5 ? mid : outer;
       const size = i < 70 || p.b > 0.8 ? 2 : 1;
       g.fillRect(Math.round(cx + p.x * r * 1.3), Math.round(cy + p.y * r * 1.3 + Math.sin(t * 0.5 + i) * 0.3), size, size);
     }
@@ -437,9 +504,11 @@ function drawStop(V, s, oy, t, party = Infinity) {
       }
       if (s.halo) glow(V, bx, by, r, s.halo, 0.45);
       if (s.rings) drawRings(V, bx, by, r, false, s.rings === 'tall');
-      const paint = s.beyond ? beyondPaint(s.beyond) : PAINT[s.paint];
+      if (s.gen) drawMoons(V, s.gen, bx, by, r, t, false);
+      const paint = s.gen ? genPaint(s.gen) : s.beyond ? beyondPaint(s.beyond) : PAINT[s.paint];
       sphere(V, bx, by, r, paint, reduceMotion ? 0 : t * (s.spin || 0.1));
       if (s.rings) drawRings(V, bx, by, r, true, s.rings === 'tall');
+      if (s.gen) drawMoons(V, s.gen, bx, by, r, t, true);
       if (s.flag) stamp(V, sprite('flag'), bx + r * 0.55, by - r * 0.84 - 2);
       if (s.rover) stamp(V, sprite('rover'), bx - r * 0.5 + Math.sin(t * 0.6) * 2, by - r * 0.86 - 2);
       drawCrew(V, s.crew, bx, by, r, t, party);
@@ -516,12 +585,14 @@ function drawStop(V, s, oy, t, party = Infinity) {
     case 'cluster': {
       const w = Math.round(br * 4.4);
       const h = Math.round(br * 3.4);
-      g.drawImage(nebulaLayer('pleiades', w, h, ['#3f6fd6', '#6f9bff', '#2a4a9a'], 5, 0.55), Math.round(bx - w / 2), Math.round(by - h / 2));
-      PLEIADES.forEach(([px, py], i) => {
+      const haze = s.procedural ? [hslHex(s.hue, 0.6, 0.45), hslHex(s.hue + 0.05, 0.7, 0.62), hslHex(s.hue - 0.05, 0.6, 0.32)] : ['#3f6fd6', '#6f9bff', '#2a4a9a'];
+      g.drawImage(nebulaLayer(s.procedural ? `cluster${s.seed}` : 'pleiades', w, h, haze, s.procedural ? s.seed % 40 : 5, 0.55), Math.round(bx - w / 2), Math.round(by - h / 2));
+      const layout = s.procedural ? Array.from({ length: 6 + (s.seed % 5) }, (_, k) => [hash(k, s.seed) * 2 - 1, hash(k + 9, s.seed) * 2 - 1]) : PLEIADES;
+      layout.forEach(([px, py], i) => {
         const x = Math.round(bx + px * br * 1.5);
         const y = Math.round(by + py * br * 1.2);
         const tw = 0.7 + 0.3 * Math.sin(t * 2.5 + i * 1.9);
-        glow(V, x, y, 2.4, '#9fc4ff', tw);
+        glow(V, x, y, 2.4, s.procedural ? hslHex(s.hue, 0.7, 0.75) : '#9fc4ff', tw);
         g.fillStyle = '#ffffff';
         g.fillRect(x - 2, y, 5, 1);
         g.fillRect(x, y - 2, 1, 5);
@@ -534,7 +605,7 @@ function drawStop(V, s, oy, t, party = Infinity) {
       const w = Math.round(br * 4.6);
       const h = Math.round(br * 3.4);
       g.globalAlpha = 0.85 + 0.15 * Math.sin(t * 0.9);
-      g.drawImage(nebulaLayer(s.name, w, h, s.colors, s.pulsar ? 9 : 2), Math.round(bx - w / 2), Math.round(by - h / 2));
+      g.drawImage(nebulaLayer(s.name, w, h, s.colors, s.seed ?? (s.pulsar ? 9 : 2)), Math.round(bx - w / 2), Math.round(by - h / 2));
       g.globalAlpha = 1;
       twinkles(V, bx, by, w * 0.8, h * 0.8, 16, t, s.pulsar ? 3 : 7);
       if (s.pulsar) {
@@ -554,13 +625,48 @@ function drawStop(V, s, oy, t, party = Infinity) {
       break;
     }
 
+    case 'binary': {
+      const a = reduceMotion ? 0.6 : t * 0.8;
+      const pair = s.stars.map((c, k) => ({ c, x: bx + Math.cos(a + k * Math.PI) * br * 0.95, y: by + Math.sin(a + k * Math.PI) * br * 0.3, back: Math.sin(a + k * Math.PI) < 0 }));
+      // a stream of gas pulled from one star to the other
+      g.fillStyle = pair[1].c.color;
+      for (let k = 0; k < 14; k++) {
+        const q = k / 14;
+        g.globalAlpha = 0.5 * (1 - q);
+        g.fillRect(Math.round(pair[1].x + (pair[0].x - pair[1].x) * q), Math.round(pair[1].y + (pair[0].y - pair[1].y) * q + Math.sin(q * Math.PI) * 4), 1, 1);
+      }
+      g.globalAlpha = 1;
+      for (const p of pair.filter((q) => q.back)) drawStar(V, { color: p.c.color, hot: p.c.hot }, p.x, p.y, br * 0.45 * p.c.size[0], t);
+      for (const p of pair.filter((q) => !q.back)) drawStar(V, { color: p.c.color, hot: p.c.hot }, p.x, p.y, br * 0.45 * p.c.size[0], t);
+      drawUfos(V, s.ufos, bx, by, br, t, party);
+      break;
+    }
+
+    case 'pulsar': {
+      const spinA = reduceMotion ? 0.5 : t * s.rate * 0.6;
+      const flash = 0.5 + 0.5 * Math.sin(t * s.rate * 2);
+      glow(V, bx, by, br * 0.3, s.color, 0.6 + flash * 0.6);
+      g.fillStyle = s.color;
+      for (const dir of [0, Math.PI]) {
+        for (let k = 3; k < br * 2.2; k++) {
+          g.globalAlpha = (1 - k / (br * 2.2)) * (0.5 + flash * 0.5);
+          const spread = 1 + fl(k / 9);
+          g.fillRect(Math.round(bx + Math.cos(spinA + dir) * k), Math.round(by + Math.sin(spinA + dir) * k * 0.6), spread, spread);
+        }
+      }
+      g.globalAlpha = 1;
+      disc(V, bx, by, 2.5, '#ffffff');
+      drawUfos(V, s.ufos, bx, by, br, t, party);
+      break;
+    }
+
     case 'blackhole':
       drawBlackHole(V, bx, by, br * 0.75, t);
       drawUfos(V, s.ufos, bx, by, br * 1.2, t, party);
       break;
 
     case 'galaxy':
-      drawGalaxy(V, s.shape, bx, by, br, t);
+      drawGalaxy(V, s.shape, bx, by, br, t, s.tint);
       drawUfos(V, s.ufos, bx, by, br, t, party);
       break;
 
@@ -591,7 +697,7 @@ function drawStop(V, s, oy, t, party = Infinity) {
   }
 }
 
-const ORBITERS = new Set(['planet', 'star', 'belt', 'blackhole']);
+const ORBITERS = new Set(['planet', 'star', 'belt', 'blackhole', 'binary', 'pulsar']);
 
 /** Where the rocket waits while a prompt is open. */
 function park(V, s, t) {
@@ -684,8 +790,21 @@ function initBackdrop(B) {
   }));
   B.meteors = [];
   B.ufo = null;
+  B.comet = null;
+  B.sats = [];
   B.nextMeteor = 3;
   B.nextUfo = 14;
+  B.nextShower = rand(14, 28);
+  B.nextComet = rand(20, 40);
+  B.nextSat = rand(4, 10);
+  B.shower = null;
+  // a few faraway galaxies and coloured stars that drift with the starfield
+  B.far = Array.from({ length: 5 }, (_, k) => ({ x: Math.random() * B.W, y: Math.random() * B.H, kind: k % 2 ? 'galaxy' : 'giant', hue: Math.random(), size: rand(2, 4) }));
+}
+
+function spawnMeteor(B, angle, speed, bright = false) {
+  const startX = angle > Math.PI / 2 ? rand(B.W * 0.3, B.W * 1.2) : rand(-B.W * 0.2, B.W * 0.7);
+  B.meteors.push({ x: startX, y: rand(-B.H * 0.1, B.H * 0.35), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 0, bright, len: bright ? 18 : 10 });
 }
 
 function drawBackdrop(B, dt, t) {
@@ -707,27 +826,106 @@ function drawBackdrop(B, dt, t) {
   g.globalAlpha = 1;
   if (reduceMotion) return;
 
+  // faraway galaxies and giant stars, drifting slowly
+  for (const f of B.far) {
+    f.y += speed * 0.08 * dt * 6;
+    if (f.y > B.H + 6) {
+      f.y = -6;
+      f.x = Math.random() * B.W;
+    }
+    const color = hslHex(f.hue, 0.6, 0.72);
+    g.globalAlpha = 0.35;
+    g.fillStyle = color;
+    if (f.kind === 'galaxy') {
+      g.fillRect(fl(f.x - f.size), fl(f.y), fl(f.size * 2 + 1), 1);
+      g.fillRect(fl(f.x - 1), fl(f.y - 1), 3, 3);
+    } else {
+      g.fillRect(fl(f.x - 1), fl(f.y), 3, 1);
+      g.fillRect(fl(f.x), fl(f.y - 1), 1, 3);
+    }
+  }
+  g.globalAlpha = 1;
+
+  // single shooting stars
   B.nextMeteor -= dt;
   if (B.nextMeteor <= 0) {
     B.nextMeteor = rand(3, 8);
-    B.meteors.push({ x: rand(B.W * 0.2, B.W), y: rand(0, B.H * 0.4), vx: rand(-120, -80), vy: rand(40, 70), life: 0 });
+    spawnMeteor(B, rand(2.5, 2.8), rand(90, 140));
+  }
+  // meteor showers: dozens of streaks from one direction for a few seconds
+  B.nextShower -= dt;
+  if (B.nextShower <= 0 && !B.shower) {
+    B.shower = { left: rand(3.5, 5.5), angle: Math.random() < 0.5 ? rand(2.4, 2.7) : rand(0.45, 0.75) };
+    if (B.announce) B.announce('Meteor shower');
+  }
+  if (B.shower) {
+    B.shower.left -= dt;
+    if (Math.random() < dt * 14) spawnMeteor(B, B.shower.angle + rand(-0.05, 0.05), rand(130, 220), Math.random() < 0.2);
+    if (B.shower.left <= 0) {
+      B.shower = null;
+      B.nextShower = rand(30, 55);
+    }
   }
   for (let i = B.meteors.length - 1; i >= 0; i--) {
     const m = B.meteors[i];
     m.life += dt;
     m.x += m.vx * dt;
     m.y += m.vy * dt;
-    if (m.life > 1.2) {
+    if (m.life > 1.4) {
       B.meteors.splice(i, 1);
       continue;
     }
-    for (let k = 0; k < 10; k++) {
-      g.globalAlpha = (1 - k / 10) * (1 - m.life / 1.2);
-      g.fillStyle = k < 2 ? '#ffffff' : '#9ffcff';
-      g.fillRect(fl(m.x - m.vx * k * 0.01), fl(m.y - m.vy * k * 0.01), 1, 1);
+    for (let k = 0; k < m.len; k++) {
+      g.globalAlpha = (1 - k / m.len) * (1 - m.life / 1.4);
+      g.fillStyle = k < 2 ? '#ffffff' : m.bright ? (k < 6 ? '#ffe066' : '#ff8a5e') : '#9ffcff';
+      g.fillRect(fl(m.x - m.vx * k * 0.008), fl(m.y - m.vy * k * 0.008), m.bright && k < 3 ? 2 : 1, 1);
     }
   }
   g.globalAlpha = 1;
+
+  // a comet crossing slowly, with a long tail
+  B.nextComet -= dt;
+  if (!B.comet && B.nextComet <= 0) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    B.comet = { x: dir > 0 ? -20 : B.W + 20, y: rand(B.H * 0.05, B.H * 0.45), vx: dir * rand(10, 18), vy: rand(1, 4), age: 0 };
+    if (B.announce) B.announce('Comet sighted');
+  }
+  if (B.comet) {
+    const c = B.comet;
+    c.x += c.vx * dt;
+    c.y += c.vy * dt;
+    c.age += dt;
+    for (let k = 40; k >= 0; k--) {
+      g.globalAlpha = (1 - k / 40) * 0.7;
+      g.fillStyle = k < 3 ? '#ffffff' : k < 14 ? '#bfe6ff' : '#5ef2ff';
+      g.fillRect(fl(c.x - Math.sign(c.vx) * k * 1.2), fl(c.y - k * 0.35 + Math.sin(k * 0.4 + c.age * 3) * (k / 30)), k < 3 ? 2 : 1, 1);
+    }
+    g.globalAlpha = 1;
+    if (c.x < -60 || c.x > B.W + 60) {
+      B.comet = null;
+      B.nextComet = rand(40, 70);
+    }
+  }
+
+  // satellites: slow dots with a blinking light
+  B.nextSat -= dt;
+  if (B.nextSat <= 0 && B.sats.length < 2) {
+    B.nextSat = rand(10, 20);
+    B.sats.push({ x: -4, y: rand(B.H * 0.1, B.H * 0.7), vx: rand(6, 11), vy: rand(-1.5, 1.5), age: 0 });
+  }
+  for (let i = B.sats.length - 1; i >= 0; i--) {
+    const sat = B.sats[i];
+    sat.x += sat.vx * dt;
+    sat.y += sat.vy * dt;
+    sat.age += dt;
+    g.fillStyle = '#c8c4e8';
+    g.fillRect(fl(sat.x), fl(sat.y), 1, 1);
+    if (fl(sat.age * 2) % 2) {
+      g.fillStyle = '#ff5fa2';
+      g.fillRect(fl(sat.x) + 1, fl(sat.y), 1, 1);
+    }
+    if (sat.x > B.W + 4) B.sats.splice(i, 1);
+  }
 
   B.nextUfo -= dt;
   if (!B.ufo && B.nextUfo <= 0) {

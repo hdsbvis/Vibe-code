@@ -12,13 +12,14 @@ There are two worlds:
 | **Space** | General knowledge (91 question sets) | Climb 28 stops from the launch pad, past the Moon, Saturn and a black hole, to the edge of the universe |
 | **Ocean** | Sea, water and fish (46 question sets) | Dive 28 stops in a submarine, past coral reefs, the Titanic and black smokers, to the Challenger Deep |
 
-And three ways to play:
+And four ways to play:
 
 | Rules | How it works |
 | --- | --- |
 | **Classic** | 7 prompts, 25 seconds each. Get as far as you can. |
 | **Daily** | Today's 7 prompts, the same for every player. Your first run of the day is the one that counts. It rotates through the whole bank before repeating. |
 | **Survival** | No prompt limit, 18 seconds each. Three misses end the run. |
+| **Endless** | Never ends and misses cost nothing. Tap End run to see your results. |
 
 ## Play it
 
@@ -38,6 +39,21 @@ Everyone who plays through this server shares one scoreboard.
 - The repo root also works as a static site with no build step (GitHub Pages, for example).
 
 Without the server, scores are kept on the device only.
+
+## Past the edge of the map
+
+After the last charted stop, every stop is generated from its number, so it is the same for every player:
+
+- **Space:** planets (rocky, gas, ocean, lava, ice, jungle, crystal and toxic, some with rings and moons), stars of every class, binary stars, pulsars, nebulas, spiral, elliptical and irregular galaxies, star clusters, comet swarms and black holes, each with a generated name.
+- **Ocean:** glowing coral gardens, brine pools, whale falls, crystal caverns, caves under the polar ice, sunken cities, vent fields, wrecks, jellyfish blooms, trenches, and lairs of something very large.
+
+The generator lives in `src/worlds/procgen.js`.
+
+## Sky and sea events
+
+The background has its own life: meteor showers, comets, satellites and passing UFOs in Space; whales and mantas,
+dancing light, bubble storms and bioluminescent waves in the Ocean. Big events show a short notice. Space has a
+scan-line monitor effect and the Ocean a rippling one.
 
 ## No repeats
 

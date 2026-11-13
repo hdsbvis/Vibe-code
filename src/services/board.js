@@ -8,7 +8,7 @@ import { identity } from './identity.js';
 
 const MAX_RUNS = 300;
 const WORLDS = new Set(['space', 'ocean']);
-const RULESETS = new Set(['classic', 'daily', 'survival']);
+const RULESETS = new Set(['classic', 'daily', 'survival', 'endless']);
 
 /** A run as stored: world, rules, score, stops, time, and the day for Daily runs. */
 export const makeRun = ({ worldId, rulesId, score, stops, day }) => ({

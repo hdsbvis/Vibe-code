@@ -28,7 +28,7 @@ const TYPES = {
 const PUBLIC = ['index.html', 'src', 'styles']; // the only things the static server hands out
 
 const WORLDS = new Set(['space', 'ocean']);
-const RULESETS = new Set(['classic', 'daily', 'survival']);
+const RULESETS = new Set(['classic', 'daily', 'survival', 'endless']);
 const MAX_RUNS = 300;
 const MAX_PLAYERS = 5000;
 

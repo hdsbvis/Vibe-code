@@ -4,6 +4,7 @@ import {
 } from '../gfx/canvas.js';
 import { sprite } from '../gfx/sprites.js';
 import { tone, hiss } from '../audio/synth.js';
+import { oceanPlace } from './procgen.js';
 
 const TAU = Math.PI * 2;
 const mod = (n, m) => ((n % m) + m) % m;
@@ -55,25 +56,25 @@ const LEGENDS = [
   { name: 'Atlantis', note: 'Nobody has charted this', m: null, floor: 'ruins', fauna: [['fish', 6, 'school', 0.25, 0.5, { pal: FISH.gold }], ['jelly', 3, 'drift', 0.2, 0.7, { pal: { j: '#ffe066', l: '#fff8c8' } }]] },
   { name: "The Kraken's Lair", note: 'Nobody has charted this', m: null, floor: 'trenchfloor', fauna: [['squid', 1, 'loom', 0.45, 0.45, { scale: 3 }], ['spark', 10, 'spark', 0.1, 0.9, { color: '#ff8a8a' }]] },
 ];
-const DRIFTERS = ['jelly', 'vampire', 'dumbo', 'angler'];
 
 function stop(i) {
   if (i <= LAST) return ROUTE[i];
   const n = i - LAST;
   if (n <= LEGENDS.length) return LEGENDS[n - 1];
-  const glowColor = ['#7dfff0', '#ff8ad8', '#ffe066', '#b6ff5e'][i % 4];
-  return {
-    name: `Uncharted Abyss ${n - LEGENDS.length}`,
-    note: 'Nobody has charted this',
-    m: null,
-    floor: i % 2 ? 'trench' : 'trenchfloor',
-    fauna: [[DRIFTERS[i % DRIFTERS.length], 2 + (i % 3), 'drift', 0.25, 0.75], ['spark', 12, 'spark', 0.1, 0.9, { color: glowColor }]],
-  };
+  // Past the legends, every zone is generated.
+  let place = generated.get(i);
+  if (!place) {
+    place = oceanPlace(i, n - LEGENDS.length);
+    if (generated.size > 400) generated.clear();
+    generated.set(i, place);
+  }
+  return place;
 }
+const generated = new Map();
 
 const commas = (n) => Math.round(n).toLocaleString('en-US');
-const distance = (s) => (s.kind === 'home' ? 'At the surface' : s.m == null ? 'Off the charts' : `${commas(s.m)} m down`);
-const short = (s) => (s.kind === 'home' ? '0 m' : s.m == null ? '???' : `${commas(s.m)} m`);
+const distance = (s) => (s.kind === 'home' ? 'At the surface' : s.procedural ? `Uncharted waters · zone ${s.sector}` : s.m == null ? 'Off the charts' : `${commas(s.m)} m down`);
+const short = (s) => (s.kind === 'home' ? '0 m' : s.procedural ? `Zone ${s.sector}` : s.m == null ? '???' : `${commas(s.m)} m`);
 
 // ---------- water ----------
 const WATER = [
@@ -284,6 +285,100 @@ function drawFloor(V, s, oy, t, light) {
       break;
     }
 
+    case 'glowgarden': {
+      walls(V, oy, light);
+      ground(V, oy, '#2a2f3c', 1, true);
+      for (let i = 0; i < 9; i++) {
+        const x = Math.round(V.W * (0.12 + i * 0.1 + hash(i, s.seed) * 0.04));
+        const h = 6 + fl(hash(i, s.seed + 1) * 14);
+        const y = Math.round(floorTop(V, x) + oy);
+        const color = i % 2 ? s.glow : s.glow2;
+        g.fillStyle = shade(color, 0.6);
+        g.fillRect(x, y - h, 1, h);
+        for (let k = 3; k < h; k += 3) g.fillRect(x + (k % 6 ? 1 : -1), y - k, 1, 1);
+        const pulse = 0.5 + 0.5 * Math.sin(t * 2 + i);
+        glow(V, x, y - h, 2, color, 0.5 + pulse * 0.5);
+        g.fillStyle = color;
+        g.fillRect(x - 1, y - h - 1, 3, 2);
+      }
+      break;
+    }
+
+    case 'brine': {
+      ground(V, oy, '#3a3f48', 1, true);
+      const cx = V.W * 0.58;
+      const w = V.W * 0.32;
+      const y = Math.round(floorY(V) + oy + 2);
+      for (let x = Math.round(cx - w); x <= Math.round(cx + w); x++) {
+        const edge = 1 - Math.abs(x - cx) / w;
+        const depth = Math.round(2 + edge * 3);
+        g.fillStyle = Math.sin(x * 0.3 + t * 2) > 0.6 ? '#c8f1ff' : '#5e8fb8';
+        g.fillRect(x, y, 1, depth);
+        if (edge < 0.15 || hash(x, 3) > 0.8) {
+          g.fillStyle = '#2c2a26';
+          g.fillRect(x, y - 1, 1, 1); // mussels on the shore
+        }
+      }
+      g.globalAlpha = 0.25 + 0.15 * Math.sin(t * 1.5);
+      g.fillStyle = s.glow;
+      g.fillRect(Math.round(cx - w), y, Math.round(w * 2), 1);
+      g.globalAlpha = 1;
+      break;
+    }
+
+    case 'whalefall': {
+      ground(V, oy, '#4a4438', 1, true);
+      const x0 = V.W * 0.3;
+      const y = Math.round(floorY(V) + oy);
+      g.fillStyle = '#e6e0d0';
+      for (let k = 0; k < 11; k++) {
+        const x = Math.round(x0 + k * V.W * 0.045);
+        const h = Math.round(8 * Math.sin(((k + 1) / 12) * Math.PI));
+        g.fillRect(x, y - 1, 3, 1); // vertebra
+        g.fillRect(x + 1, y - h - 1, 1, h); // rib
+        g.fillRect(x + 1 + (k % 2 ? 1 : -1), y - h - 1, 1, 1);
+      }
+      g.fillRect(Math.round(x0 - 7), y - 4, 6, 4); // skull
+      g.fillStyle = '#b8b0a0';
+      g.fillRect(Math.round(x0 - 6), y - 3, 2, 1);
+      break;
+    }
+
+    case 'crystals': {
+      walls(V, oy, light);
+      ground(V, oy, '#262a36', 1, true);
+      for (let i = 0; i < 12; i++) {
+        const x = Math.round(V.W * (0.15 + hash(i, s.seed) * 0.72));
+        const h = 4 + fl(hash(i, s.seed + 2) * 12);
+        const lean = hash(i, s.seed + 3) > 0.5 ? 1 : -1;
+        const y = Math.round(floorTop(V, x) + oy);
+        const color = i % 3 ? s.glow : s.glow2;
+        for (let k = 0; k < h; k++) {
+          const wdt = Math.max(1, Math.round((1 - k / h) * 3));
+          g.fillStyle = k > h * 0.7 ? '#ffffff' : shade(color, 0.75 + (k / h) * 0.4);
+          g.fillRect(x + Math.round((k / h) * lean * 2), y - k, wdt, 1);
+        }
+        if (fl(t * 1.5 + i) % 5 === 0) glow(V, x, y - h, 1.5, color, 0.8);
+      }
+      break;
+    }
+
+    case 'icecave': {
+      ground(V, oy, '#9fb8cc', 1, true);
+      // the underside of the ice above, hung with icicles
+      for (let x = 0; x < V.W; x++) {
+        const top = Math.round(oy + 3 + noise(x * 0.2, 5) * 6);
+        g.fillStyle = '#dfefff';
+        g.fillRect(x, Math.round(oy) - 4, 1, top - Math.round(oy) + 4);
+        if (hash(x, 9) > 0.82) {
+          const len = 3 + fl(hash(x, 10) * 10);
+          g.fillStyle = '#bfe0f5';
+          g.fillRect(x, top, 1, len);
+        }
+      }
+      break;
+    }
+
     case 'ruins': {
       ground(V, oy, '#4a5a66', 1, true);
       for (let i = 0; i < 6; i++) {
@@ -297,7 +392,7 @@ function drawFloor(V, s, oy, t, light) {
         g.fillStyle = '#c8d8e4';
         g.fillRect(x - 3, y - h - 1, 6, 2);
         if (i % 2 === 0) {
-          g.fillStyle = fl(t * 2 + i) % 2 ? '#7dfff0' : '#3fd8c8';
+          g.fillStyle = fl(t * 2 + i) % 2 ? s.glow || '#7dfff0' : '#3fd8c8';
           g.fillRect(x - 1, y - fl(h * 0.6), 2, 2);
         }
       }
@@ -508,6 +603,14 @@ function initBackdrop(B) {
   B.snow = Array.from({ length: 50 }, () => ({ x: Math.random() * B.W, y: Math.random() * B.H, speed: rand(1.5, 5), sway: rand(0, TAU) }));
   B.glints = Array.from({ length: 20 }, () => ({ x: Math.random() * B.W, y: Math.random() * B.H, rate: rand(1, 3), phase: rand(0, TAU), hue: Math.random() }));
   B.shapes = Array.from({ length: 4 }, (_, i) => ({ x: Math.random() * B.W, y: B.H * (0.2 + 0.2 * i), speed: rand(3, 7) * (i % 2 ? 1 : -1) }));
+  B.caustics = Array.from({ length: 14 }, () => ({ x: Math.random() * B.W, y: Math.random() * B.H * 0.5, r: rand(4, 12), phase: rand(0, TAU) }));
+  B.jellies = Array.from({ length: 3 }, () => ({ x: Math.random() * B.W, y: Math.random() * B.H, phase: rand(0, TAU) }));
+  B.whale = null;
+  B.nextWhale = rand(12, 25);
+  B.storm = null;
+  B.nextStorm = rand(18, 32);
+  B.wave = null;
+  B.nextWave = rand(10, 20);
 }
 
 function drawBackdrop(B, dt, t) {
@@ -535,6 +638,58 @@ function drawBackdrop(B, dt, t) {
       g.lineTo(x - 8 - B.H * 0.35, B.H);
       g.fill();
     }
+  }
+
+  // dancing light patches near the surface
+  if (sunlight > 0 && !reduceMotion) {
+    g.fillStyle = '#ffffff';
+    for (const c of B.caustics) {
+      c.phase += dt * 0.8;
+      const r = c.r * (0.7 + 0.3 * Math.sin(c.phase));
+      g.globalAlpha = sunlight * 0.06;
+      g.beginPath();
+      g.ellipse(c.x + Math.sin(c.phase * 0.7) * 6, c.y + Math.cos(c.phase * 0.5) * 3, r, r * 0.45, 0, 0, TAU);
+      g.fill();
+    }
+  }
+
+  // a whale or manta silhouette gliding past in the distance
+  B.nextWhale -= dt;
+  if (!B.whale && B.nextWhale <= 0 && depth < 3500) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    B.whale = { x: dir > 0 ? -60 : B.W + 60, y: rand(B.H * 0.2, B.H * 0.6), dir, kind: Math.random() < 0.65 ? 'whale' : 'manta', age: 0 };
+    if (B.announce) B.announce(B.whale.kind === 'whale' ? 'Whale passing' : 'Giant manta passing');
+  }
+  if (B.whale) {
+    const w = B.whale;
+    w.x += w.dir * dt * (w.kind === 'whale' ? 9 : 14);
+    w.age += dt;
+    g.globalAlpha = 0.22;
+    g.save();
+    g.translate(fl(w.x), fl(w.y + Math.sin(w.age * 0.8) * 3));
+    g.scale(w.dir * 3, 3);
+    g.drawImage(sprite(w.kind, fl(w.age * 2), w.kind === 'whale' ? { g: '#021a33', d: '#021a33', w: '#021a33', e: '#021a33' } : { m: '#021a33', w: '#021a33', e: '#021a33' }), -13, -4);
+    g.restore();
+    g.globalAlpha = 1;
+    if (w.x < -100 || w.x > B.W + 100) {
+      B.whale = null;
+      B.nextWhale = rand(30, 55);
+    }
+  }
+
+  // jellyfish drifting far away in the deep
+  if (depth > 150 && !reduceMotion) {
+    for (const j of B.jellies) {
+      j.phase += dt;
+      j.y -= dt * (2 + Math.sin(j.phase * 2));
+      if (j.y < -10) {
+        j.y = B.H + 10;
+        j.x = Math.random() * B.W;
+      }
+      g.globalAlpha = clamp(depth / 2000, 0.1, 0.35);
+      g.drawImage(sprite('jelly', fl(j.phase * 1.5), { j: '#8f7dff', l: '#c8bfff' }), fl(j.x), fl(j.y));
+    }
+    g.globalAlpha = 1;
   }
 
   const shade2 = clamp(1 - depth / 1400, 0, 1);
@@ -591,6 +746,63 @@ function drawBackdrop(B, dt, t) {
     }
   }
   g.globalAlpha = 1;
+  if (reduceMotion) return;
+
+  // bubble storms: a curtain of bubbles rushing up from below
+  B.nextStorm -= dt;
+  if (!B.storm && B.nextStorm <= 0) {
+    B.storm = { left: rand(3, 5), x: rand(B.W * 0.15, B.W * 0.85), parts: [] };
+    if (B.announce) B.announce('Bubble storm');
+  }
+  if (B.storm) {
+    const st = B.storm;
+    st.left -= dt;
+    if (st.left > 0) for (let k = 0; k < 4; k++) st.parts.push({ x: st.x + rand(-B.W * 0.18, B.W * 0.18), y: B.H + 4, v: rand(40, 90), size: Math.random() < 0.3 ? 2 : 1 });
+    g.fillStyle = '#eafaff';
+    for (let k = st.parts.length - 1; k >= 0; k--) {
+      const b = st.parts[k];
+      b.y -= b.v * dt;
+      b.x += Math.sin(b.y * 0.1) * 0.3;
+      if (b.y < -4) {
+        st.parts.splice(k, 1);
+        continue;
+      }
+      g.globalAlpha = 0.6;
+      if (b.size === 2) {
+        g.fillRect(fl(b.x), fl(b.y), 2, 1);
+        g.fillRect(fl(b.x), fl(b.y) + 2, 2, 1);
+        g.fillRect(fl(b.x) - 1, fl(b.y) + 1, 1, 1);
+        g.fillRect(fl(b.x) + 2, fl(b.y) + 1, 1, 1);
+      } else g.fillRect(fl(b.x), fl(b.y), 1, 1);
+    }
+    g.globalAlpha = 1;
+    if (st.left <= 0 && !st.parts.length) {
+      B.storm = null;
+      B.nextStorm = rand(35, 60);
+    }
+  }
+
+  // in the dark, a wave of bioluminescence sweeps across
+  B.nextWave -= dt;
+  if (!B.wave && B.nextWave <= 0 && depth > 600) {
+    B.wave = { x: -20, color: ['#7dfff0', '#5ec8ff', '#b6ff5e'][fl(rand(0, 3))] };
+    if (B.announce) B.announce('Bioluminescent wave');
+  }
+  if (B.wave) {
+    B.wave.x += dt * 40;
+    g.fillStyle = B.wave.color;
+    for (let k = 0; k < 60; k++) {
+      const x = B.wave.x - hash(k, 1) * 30;
+      const y = hash(k, 2) * B.H;
+      g.globalAlpha = Math.max(0, 0.8 - hash(k, 3) * 0.6) * Math.abs(Math.sin(t * 6 + k));
+      g.fillRect(fl(x), fl(y + Math.sin(x * 0.05 + k) * 4), 1, 1);
+    }
+    g.globalAlpha = 1;
+    if (B.wave.x > B.W + 40) {
+      B.wave = null;
+      B.nextWave = rand(20, 40);
+    }
+  }
 }
 
 /** Depth in metres at a fractional position along the route, for the water colour. */

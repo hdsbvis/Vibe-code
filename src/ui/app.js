@@ -3,6 +3,7 @@ import { Backdrop } from '../gfx/backdrop.js';
 import { WORLDS } from '../worlds/index.js';
 import { store } from '../services/storage.js';
 import { $ } from './dom.js';
+import { notice } from './fx.js';
 
 const SCREENS = ['menu', 'select', 'game', 'results', 'rankings', 'howto'];
 const hooks = {};
@@ -15,6 +16,10 @@ export const session = {
 };
 
 export const backdrop = new Backdrop($('#sky'));
+// Sky and sea events (meteor showers, whales...) get a notice on the menu and while playing.
+backdrop.announce = (text) => {
+  if (active === 'menu' || active === 'game') notice(text);
+};
 
 /** Screens register {enter, leave, frame} callbacks. */
 export function register(name, hook) {

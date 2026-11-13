@@ -11,6 +11,10 @@ import { STREAK_EVERY, STREAK_BONUS } from '../core/scoring.js';
 import { shuffle } from '../core/rng.js';
 import { ui, unlock } from '../audio/synth.js';
 import { progress } from '../services/progress.js';
+import { icon } from './icons.js';
+import { notice } from './fx.js';
+
+const TIER_ICONS = { common: 'dot', uncommon: 'diamond', rare: 'star', legendary: 'crown' };
 import { toggleMute } from './menu.js';
 import { showResults } from './results.js';
 
@@ -39,6 +43,11 @@ function paintProgress() {
       pips.push(entry ? (entry.kind === 'hit' ? 'done' : 'lost') : i === game.log.length ? 'now' : '');
     }
     $('#hudProg').textContent = `Prompt ${Math.min(game.promptNumber, rules.prompts)} of ${rules.prompts}`;
+  } else if (rules.endless) {
+    const recent = game.log.slice(-7);
+    for (const entry of recent) pips.push(entry.kind === 'hit' ? 'done' : 'lost');
+    if (!game.resolved) pips.push('now');
+    $('#hudProg').textContent = `Endless · prompt ${game.promptNumber}`;
   } else {
     for (let i = 0; i < rules.strikes; i++) pips.push(i < rules.strikes - game.strikes ? 'life' : 'lost');
     const left = rules.strikes - game.strikes;
@@ -47,8 +56,8 @@ function paintProgress() {
   $('#pips').innerHTML = pips.map((cls) => `<span class="pip ${cls}"></span>`).join('');
 
   const streak = game.streak;
-  $('#hudStreak').textContent =
-    streak < 2 ? '' : streak % STREAK_EVERY === STREAK_EVERY - 1 ? `Streak ×${streak} · boost next` : `Streak ×${streak}`;
+  $('#hudStreak').innerHTML =
+    streak < 2 ? '' : `${icon('flame')}${streak % STREAK_EVERY === STREAK_EVERY - 1 ? `Streak ×${streak} · boost next` : `Streak ×${streak}`}`;
 }
 
 function paintPosition(index) {
@@ -173,13 +182,13 @@ function renderResult(question, raw, out) {
 
   const chips = [];
   if (out.kind === 'hit') {
-    chips.push(`<span class="chip solid">${out.tier.label}</span>`);
-    chips.push(`<span class="chip">+${out.hops} ${out.hops === 1 ? 'stop' : 'stops'}</span>`);
-    if (out.boost) chips.push(`<span class="chip hot">Streak boost: +${STREAK_BONUS.hops} stop, +${STREAK_BONUS.points} points</span>`);
-    else if (out.streak >= 2) chips.push(`<span class="chip hot">Streak ×${out.streak}</span>`);
-  } else if (!finite()) {
+    chips.push(`<span class="chip solid">${icon(TIER_ICONS[out.tier.id])}${out.tier.label}</span>`);
+    chips.push(`<span class="chip">${icon('flag')}+${out.hops} ${out.hops === 1 ? 'stop' : 'stops'}</span>`);
+    if (out.boost) chips.push(`<span class="chip hot">${icon('flame')}Streak boost: +${STREAK_BONUS.hops} stop, +${STREAK_BONUS.points} points</span>`);
+    else if (out.streak >= 2) chips.push(`<span class="chip hot">${icon('flame')}Streak ×${out.streak}</span>`);
+  } else if (!finite() && !rules.endless) {
     const left = rules.strikes - out.strikes;
-    chips.push(`<span class="chip hot">${left === 0 ? 'No lives left' : `${left} ${left === 1 ? 'life' : 'lives'} left`}</span>`);
+    chips.push(`<span class="chip hot">${icon('heart')}${left === 0 ? 'No lives left' : `${left} ${left === 1 ? 'life' : 'lives'} left`}</span>`);
   }
   $('#gains').innerHTML = chips.map((c, i) => c.replace('class="', `style="--d:${i * 90}ms" class="`)).join('');
 
@@ -194,6 +203,7 @@ function renderResult(question, raw, out) {
   $('#cuts').innerHTML = rareAnswers(question).map((a, i) => `<span class="chip" style="--d:${400 + i * 80}ms">${esc(a.name)}</span>`).join('');
   $('#chartSize').textContent = `${question.answers.length} answers count`;
   $('#next').textContent = out.over ? 'See results' : 'Next prompt';
+  $('#finish').hidden = !rules.endless || out.over;
 }
 
 function showResult(shake = false) {
@@ -210,6 +220,10 @@ function showResult(shake = false) {
 }
 
 function arrive(out, scoreBefore) {
+  if (out.from <= world.routeLength && out.to > world.routeLength) {
+    // Crossing off the map: from here on every place is generated.
+    setTimeout(() => notice(world.id === 'ocean' ? 'Off the charts: new zones ahead' : 'Off the charts: new worlds ahead', 'target'), 900);
+  }
   const stop = world.stop(out.to);
   world.sfx.arrive(out.to);
   for (let i = 0; i < 3; i++) world.sfx.cheer(i);
@@ -308,6 +322,11 @@ export function initPlay() {
     resolve(value);
   });
   $('#next').addEventListener('click', next);
+  $('#finish').addEventListener('click', () => {
+    if (!game) return;
+    game.finish();
+    next();
+  });
   $('#skip').addEventListener('click', () => scene.skip());
   $('#sceneWrap').addEventListener('click', (event) => {
     if (!event.target.closest('button')) scene.skip();

@@ -8,6 +8,8 @@ import { TIERS, pctForPoints } from '../core/scoring.js';
 import { identity } from '../services/identity.js';
 import { store } from '../services/storage.js';
 import { ui, unlock, isMuted, setMuted } from '../audio/synth.js';
+import { icon } from './icons.js';
+import { startTicker, stopTicker } from './fx.js';
 
 let hero;
 let world;
@@ -16,7 +18,7 @@ let nextHop = 0;
 export function paintMute() {
   for (const id of ['#mMute', '#mute']) {
     const button = $(id);
-    button.textContent = '♪';
+    button.innerHTML = icon('sound');
     button.classList.toggle('off', isMuted());
     button.setAttribute('aria-label', isMuted() ? 'Sound is off' : 'Sound is on');
   }
@@ -97,6 +99,7 @@ export function initMenu() {
       nextHop = performance.now() + 1400;
       $('#callsign').textContent = identity.name;
       paintBest();
+      startTicker(world.id);
     },
     frame(now, dt) {
       hero.frame(now, dt);
@@ -121,6 +124,7 @@ export function initMenu() {
     },
     leave() {
       backdrop.warpTarget = 0;
+      stopTicker();
     },
   });
   register('howto', {});
